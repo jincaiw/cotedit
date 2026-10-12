@@ -1,0 +1,44 @@
+[
+  {
+    "id": "default-markdown-image",
+    "scope": "markdown",
+    "extensions": ["jpg", "jpeg", "gif", "png"],
+    "description": "Markdown 图片",
+    "format": "![<<<FILENAME-NOSUFFIX>>>](<<<RELATIVE-PATH>>>)"
+  },
+  {
+    "id": "default-markdown-link",
+    "scope": "markdown",
+    "extensions": [],
+    "description": "Markdown 链接",
+    "format": "[<<<FILENAME-NOSUFFIX>>>](<<<RELATIVE-PATH>>>)"
+  },
+  {
+    "id": "default-html-image",
+    "scope": "html",
+    "extensions": ["jpg", "jpeg", "gif", "png"],
+    "description": "HTML 图片",
+    "format": "<img src=\"<<<RELATIVE-PATH>>>\" alt=\"<<<FILENAME-NOSUFFIX>>>\" title=\"<<<FILENAME-NOSUFFIX>>>\" width=\"<<<IMAGEWIDTH>>>\" height=\"<<<IMAGEHEIGHT>>>\" />"
+  },
+  {
+    "id": "default-html-script",
+    "scope": "html",
+    "extensions": ["js"],
+    "description": "HTML 脚本",
+    "format": "<script type=\"text/javascript\" src=\"<<<RELATIVE-PATH>>>\"></script>"
+  },
+  {
+    "id": "default-html-link",
+    "scope": "html",
+    "extensions": ["html", "htm", "php"],
+    "description": "HTML 页面链接",
+    "format": "<a href=\"<<<RELATIVE-PATH>>>\" title=\"<<<FILENAME-NOSUFFIX>>>\"></a>"
+  },
+  {
+    "id": "default-css-url",
+    "scope": "css",
+    "extensions": [],
+    "description": "CSS URL",
+    "format": "url(\"<<<RELATIVE-PATH>>>\")"
+  }
+]

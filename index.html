@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f5f7" />
+    <meta name="description" content="CotEdit — 跨平台纯文本与代码编辑器" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <title>CotEdit</title>
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="titlebar">
+        <div class="brand"><div class="brand-mark">C</div><span>CotEdit</span><span class="brand-version">TEXT EDITOR</span></div>
+        <div class="titlebar-actions">
+          <button class="icon-button" id="new-file" title="新建文稿 (⌘/Ctrl+N)" aria-label="新建文稿">＋</button>
+          <button class="icon-button" id="open-file" title="打开文稿 (⌘/Ctrl+O)" aria-label="打开文稿">↗</button>
+          <button class="icon-button" id="save-file" title="保存 (⌘/Ctrl+S)" aria-label="保存">↓</button>
+          <span class="toolbar-divider"></span>
+          <button class="icon-button" id="theme-toggle" title="切换外观" aria-label="切换外观" aria-pressed="false">◐</button>
+          <button class="icon-button" id="settings-toggle" title="编辑器设置" aria-label="编辑器设置" aria-expanded="false" aria-controls="settings-popover">⚙</button>
+          <button class="icon-button" id="shortcuts-toggle" title="键盘快捷键" aria-label="键盘快捷键">?</button>
+        </div>
+      </header>
+      <div class="workspace">
+        <aside class="sidebar" aria-label="文稿导航">
+          <div class="sidebar-heading"><span id="sidebar-mode-title">文稿</span><div class="sidebar-heading-actions"><button class="text-icon" id="folder-navigation-toggle" title="打开文件夹导航" aria-label="打开文件夹导航" aria-controls="folder-navigation-view" aria-pressed="false">▤</button><button class="text-icon" id="sidebar-new" title="新建文稿" aria-label="新建文稿">＋</button></div></div>
+          <div id="sidebar-documents-view">
+            <div class="sidebar-section-label">打开的文件</div>
+            <div id="sidebar-documents" class="sidebar-documents"></div>
+          </div>
+          <section id="folder-navigation-view" class="folder-navigation-view hidden" role="region" aria-label="文件夹导航" hidden>
+            <div class="folder-navigation-toolbar">
+              <button id="folder-history-previous" aria-label="上一个文稿" title="上一个文稿" disabled>←</button>
+              <button id="folder-history-next" aria-label="下一个文稿" title="下一个文稿" disabled>→</button>
+              <button id="folder-navigation-parent" aria-label="上级文件夹" title="上级文件夹" disabled>↑</button>
+              <button id="folder-navigation-open" aria-label="打开文件夹" title="打开文件夹">…</button>
+            </div>
+            <div id="folder-navigation-root" class="folder-navigation-root">尚未打开文件夹</div>
+            <div id="folder-navigation-current" class="folder-navigation-current" aria-live="polite">选择文件夹开始浏览</div>
+            <form id="folder-search-form" class="folder-search-form" role="search" aria-label="在文件夹中查找">
+              <div class="folder-search-row"><input id="directory-query" aria-label="在所选文件夹中查找文本" placeholder="在文件夹中查找…" autocomplete="off" disabled /><button id="directory-run" type="submit" aria-label="查找文件夹内容" title="查找">⌕</button></div>
+              <div class="folder-search-options"><label><input id="directory-regex" type="checkbox" disabled />正则</label><label><input id="directory-case" type="checkbox" disabled />区分大小写</label><button id="directory-search-clear" type="button" aria-label="清除文件夹搜索" title="清除搜索">清除</button></div>
+            </form>
+            <div id="folder-navigation-items" class="folder-navigation-items" role="list" aria-label="文件夹内容"></div>
+            <div id="directory-results" class="folder-search-results hidden" role="list" aria-label="文件夹搜索结果" aria-live="polite"></div>
+            <div class="folder-browser-footer">
+              <label class="folder-name-filter"><span class="sr-only">筛选当前文件夹中的文件和子文件夹名称</span><input id="directory-name-filter" type="search" aria-label="筛选当前文件夹中的文件和子文件夹名称" aria-controls="folder-navigation-items" placeholder="筛选文件名…" maxlength="512" autocomplete="off" disabled /></label>
+              <div class="folder-add-menu" id="folder-add-menu">
+                <button id="folder-add-toggle" type="button" aria-label="添加文件或文件夹" title="添加文件或文件夹" aria-haspopup="menu" aria-expanded="false" aria-controls="folder-add-options" disabled>＋</button>
+                <div id="folder-add-options" class="folder-add-options" role="menu" aria-label="添加文件或文件夹" hidden>
+                  <button id="folder-add-file" type="button" role="menuitem" disabled>新建文件</button>
+                  <button id="folder-add-folder" type="button" role="menuitem" disabled>新建文件夹</button>
+                </div>
+              </div>
+            </div>
+            <div id="folder-navigation-status" class="folder-navigation-status" aria-live="polite"></div>
+            <section id="folder-preview" class="folder-preview hidden" role="region" aria-label="文件预览" hidden>
+              <div class="folder-preview-head"><strong id="folder-preview-title">文件预览</strong><span id="folder-preview-meta" role="status" aria-live="polite"></span></div>
+              <dl id="folder-preview-attributes" class="folder-preview-attributes" aria-label="文件属性"></dl>
+              <pre id="folder-preview-content" aria-label="只读文件预览"></pre>
+              <div class="folder-preview-actions"><button id="folder-preview-open" type="button">打开</button><button id="folder-preview-open-plain" type="button">以纯文本打开</button><button id="folder-preview-open-new-window" type="button">在新窗口打开</button><div class="folder-preview-external-control" id="folder-preview-external-control"><button id="folder-preview-open-external" type="button" aria-label="使用系统默认应用打开" title="使用系统默认应用打开">外部编辑器</button><button id="folder-preview-external-menu-toggle" type="button" aria-label="显示外部编辑器选项" title="显示外部编辑器选项" aria-haspopup="menu" aria-expanded="false" aria-controls="folder-preview-external-menu" disabled>▾</button><div id="folder-preview-external-menu" class="folder-preview-external-menu" role="menu" aria-label="外部编辑器选项" hidden><button id="folder-preview-open-default" type="button" role="menuitem" disabled>默认应用</button><div id="folder-preview-registered-applications-separator" class="folder-preview-external-separator" role="separator" hidden></div><div id="folder-preview-registered-applications"></div><div class="folder-preview-external-separator" role="separator"></div><button id="folder-preview-open-with" type="button" role="menuitem" disabled>其他应用…</button></div></div></div>
+            </section>
+          </section>
+          <div class="sidebar-bottom">
+            <div class="local-note"><span class="status-dot"></span><span>本地编辑 · 不上传</span></div>
+            <div class="sidebar-about">CotEdit <span id="app-version"></span></div>
+          </div>
+        </aside>
+        <main class="main-pane">
+          <div class="tabbar"><div id="tab-strip" class="tab-strip"><div id="tabs" class="tabs" role="tablist" aria-label="打开的文稿"></div><button id="tab-close" class="tab-close" type="button" aria-label="关闭文稿" title="关闭文稿" hidden disabled>×</button></div><button id="tab-overflow" class="tab-overflow" title="更多文稿" aria-label="更多文稿" aria-haspopup="menu" aria-controls="tab-overflow-menu" aria-expanded="false">···</button><div id="tab-overflow-menu" class="tab-overflow-menu hidden" role="menu" aria-label="所有打开的文稿"></div></div>
+          <div class="document-toolbar">
+            <div class="document-identity"><span id="file-icon" class="file-icon">TXT</span><div class="file-title-wrap"><div id="active-filename" class="active-filename">未命名.txt</div><div id="file-path" class="file-path">本地文稿</div></div></div>
+            <div class="document-tools">
+              <button class="tool-button" id="find-button" title="查找与替换 (⌘/Ctrl+F)" aria-label="查找与替换" aria-controls="search-panel" aria-expanded="false"><span aria-hidden="true">⌕</span> <span>查找</span></button>
+              <button class="tool-button" id="directory-search-button" title="在文件夹中查找 (⌘⌥/Ctrl+Alt+F)" aria-label="在文件夹中查找">⌕ <span>文件夹</span></button>
+              <button class="tool-button" id="outline-toggle" title="文稿大纲" aria-label="文稿大纲" aria-expanded="false">☷ <span>大纲</span></button>
+              <button class="tool-button" id="split-toggle" title="切换分屏" aria-label="切换分屏" aria-pressed="false">▥ <span>分屏</span></button>
+              <button class="tool-button" id="inspector-toggle" title="Unicode 字符检查器" aria-label="Unicode 字符检查器" aria-expanded="false">ℹ <span>字符</span></button>
+              <button class="tool-button" id="warnings-toggle" title="编码警告检查器" aria-label="编码警告检查器" aria-expanded="false">⚠ <span>警告</span></button>
+              <button class="tool-button" id="wrap-toggle" title="切换自动换行" aria-label="切换自动换行" aria-pressed="false">↵ <span>换行</span></button>
+              <button class="tool-button selected" id="line-toggle" title="显示/隐藏行号" aria-label="显示/隐藏行号" aria-pressed="true">☷ <span>行号</span></button>
+            </div>
+          </div>
+          <nav id="navigation-bar" class="navigation-bar" aria-label="文稿导航栏">
+            <div class="outline-navigation-controls">
+              <button id="outline-previous" class="outline-navigation-arrow" type="button" aria-label="上一个大纲项" title="上一个大纲项" disabled>‹</button>
+              <select id="outline-navigation-select" aria-label="大纲菜单" title="选择大纲项" disabled>
+                <option value="">无大纲项</option>
+              </select>
+              <button id="outline-next" class="outline-navigation-arrow" type="button" aria-label="下一个大纲项" title="下一个大纲项" disabled>›</button>
+            </div>
+            <span id="outline-navigation-status" class="sr-only" role="status" aria-live="polite"></span>
+          </nav>
+          <div id="search-panel" class="search-panel hidden" role="search" aria-label="查找与替换">
+            <div class="search-row"><span class="search-symbol" aria-hidden="true">⌕</span><input id="search-query" aria-label="查找文本或正则表达式" placeholder="查找文本或正则表达式…" autocomplete="off" /><button id="match-case" class="search-option" title="区分大小写" aria-label="区分大小写" aria-pressed="false">Aa</button><button id="match-regex" class="search-option" title="正则表达式" aria-label="正则表达式" aria-pressed="false">.*</button><button id="match-whole-word" class="search-option" title="整词匹配" aria-label="整词匹配" aria-pressed="false">ab</button><button id="match-diacritics" class="search-option" title="忽略变音符号（仅普通文字查找）" aria-label="忽略变音符号" aria-pressed="false" aria-disabled="false">é</button><button id="find-prev" class="search-nav" title="上一个匹配" aria-label="上一个匹配">↑</button><button id="find-next" class="search-nav" title="下一个匹配" aria-label="下一个匹配">↓</button><span id="match-count" class="match-count" aria-live="polite"></span><button id="search-close" class="search-close" title="关闭" aria-label="关闭查找">×</button></div>
+            <div class="replace-row"><span class="replace-symbol" aria-hidden="true">↳</span><input id="replace-query" aria-label="替换为" placeholder="替换为…" autocomplete="off" /><button id="replace-one" class="replace-button">替换</button><button id="replace-all" class="replace-button">全部替换</button><button id="multiple-replace-open" class="replace-button">多重替换…</button></div>
+          </div>
+          <section class="editor-shell">
+            <div id="editor" class="editor" role="tabpanel"></div>
+            <div id="split-editor" class="split-editor hidden"><div class="split-divider" aria-hidden="true"></div><div id="editor-secondary" class="editor"></div></div>
+            <div id="welcome" class="welcome hidden"><div class="welcome-card"><div class="welcome-mark">C</div><h1>让文字回到文字</h1><p>轻盈、专注的纯文本与代码编辑空间。</p><div class="welcome-actions"><button id="welcome-open" class="primary-button">打开文件</button><button id="welcome-new" class="secondary-button">新建文稿</button></div><div class="welcome-shortcuts"><span><kbd>⌘/Ctrl</kbd> <kbd>O</kbd> 打开</span><span><kbd>⌘/Ctrl</kbd> <kbd>N</kbd> 新建</span></div></div></div>
+            <section id="outline-panel" class="floating-panel outline-panel hidden" aria-label="文稿大纲">
+              <div class="floating-panel-head"><strong>文稿大纲</strong><button class="panel-close" data-close-panel="outline-panel" aria-label="关闭">×</button></div>
+              <div id="outline-items" class="outline-items"></div>
+            </section>
+            <section id="character-panel" class="floating-panel character-panel hidden" aria-label="Unicode 字符检查器">
+              <div class="floating-panel-head"><strong>Unicode 字符</strong><button class="panel-close" data-close-panel="character-panel" aria-label="关闭">×</button></div>
+              <div id="character-details" class="character-details">将光标放在字符上或选择一个字符</div>
+            </section>
+            <section id="warnings-panel" class="floating-panel warnings-panel hidden" aria-label="编码警告检查器">
+              <div class="floating-panel-head"><strong>警告检查器</strong><button class="panel-close" data-close-panel="warnings-panel" aria-label="关闭警告检查器">×</button></div>
+              <p id="warnings-summary" class="warnings-summary" role="status" aria-live="polite">打开检查器以扫描当前文稿。</p>
+              <ul id="warnings-items" class="warnings-items" aria-label="不可编码字符列表"></ul>
+              <div class="warnings-actions"><button id="warnings-refresh" type="button">重新检查</button></div>
+            </section>
+            <aside id="document-inspector-panel" class="document-inspector-panel hidden" aria-labelledby="document-inspector-title" aria-describedby="document-inspector-description">
+              <div class="document-inspector-head"><div><h2 id="document-inspector-title">文稿检查器</h2><p id="document-inspector-description">当前文稿的文件、文本设置、计数和字符信息</p></div><button id="document-inspector-close" class="panel-close" type="button" data-close-panel="document-inspector-panel" aria-label="关闭文稿检查器">×</button></div>
+              <div class="document-inspector-content">
+                <details class="document-inspector-section" open>
+                  <summary>文件</summary>
+                  <dl class="document-inspector-list">
+                    <div><dt>名称</dt><dd id="document-inspector-name">—</dd></div>
+                    <div><dt>路径</dt><dd class="document-inspector-path-row"><span id="document-inspector-path" class="document-inspector-path-value">—</span><button id="document-inspector-reveal" class="document-inspector-reveal" type="button" aria-label="在文件管理器中显示当前文稿" title="在文件管理器中显示" hidden>↗</button></dd></div>
+                    <div><dt>创建时间</dt><dd id="document-inspector-fileCreated" title="打开或最近保存时记录的本机文件创建时间；外部修改不会自动刷新">—</dd></div>
+                    <div><dt>修改时间</dt><dd id="document-inspector-fileModified" title="打开或最近保存时记录的本机文件修改时间；外部修改不会自动刷新">—</dd></div>
+                    <div><dt>文件大小</dt><dd id="document-inspector-fileSize" title="打开或最近保存时记录的本机文件大小；外部修改不会自动刷新">—</dd></div>
+                    <div><dt>Finder 标签</dt><dd id="document-inspector-fileTags" title="只读显示 macOS Finder 标签；打开或最近保存时读取，外部修改不会自动刷新">—</dd></div>
+                    <div><dt>权限</dt><dd id="document-inspector-filePermissions" title="打开或最近保存时记录的 POSIX 权限快照；仅表示传统权限位，不代表 ACL，外部修改不会自动刷新">—</dd></div>
+                    <div><dt>所有者（UID / GID）</dt><dd id="document-inspector-fileOwner" title="打开或最近保存时记录的 POSIX 数值所有者与组 ID；不解析账户名，外部修改不会自动刷新">—</dd></div>
+                    <div><dt>保存状态</dt><dd id="document-inspector-saveState">—</dd></div>
+                  </dl>
+                </details>
+                <details class="document-inspector-section" open>
+                  <summary>文本设置</summary>
+                  <dl class="document-inspector-list">
+                    <div><dt>编码</dt><dd id="document-inspector-encoding">—</dd></div>
+                    <div><dt>换行符</dt><dd id="document-inspector-lineEnding">—</dd></div>
+                    <div><dt>语法模式</dt><dd id="document-inspector-syntax">—</dd></div>
+                  </dl>
+                </details>
+                <details class="document-inspector-section" open>
+                  <summary>计数</summary>
+                  <dl class="document-inspector-list">
+                    <div><dt>行数</dt><dd id="document-inspector-lineCount">—</dd></div>
+                    <div><dt>词数</dt><dd id="document-inspector-wordCount">—</dd></div>
+                    <div><dt>字符数（字素簇）</dt><dd id="document-inspector-characterCount">—</dd></div>
+                    <div><dt>长度（UTF-16 代码单元）</dt><dd id="document-inspector-length">—</dd></div>
+                    <div><dt>光标位置</dt><dd id="document-inspector-cursorPosition">—</dd></div>
+                    <div><dt>选区字符数</dt><dd id="document-inspector-selectionCharacters">—</dd></div>
+                  </dl>
+                </details>
+                <details class="document-inspector-section" open>
+                  <summary>字符</summary>
+                  <p id="document-inspector-character-state" class="document-inspector-character-state" role="status" aria-live="polite">未选择单个字符</p>
+                  <dl class="document-inspector-list">
+                    <div><dt>码位</dt><dd id="document-inspector-character-code-points" class="document-inspector-codepoints">—</dd></div>
+                    <div><dt>名称</dt><dd id="document-inspector-character-name">—</dd></div>
+                    <div><dt>区块</dt><dd id="document-inspector-character-block">—</dd></div>
+                    <div><dt>类别</dt><dd id="document-inspector-character-category">—</dd></div>
+                  </dl>
+                </details>
+              </div>
+            </aside>
+            <section id="advanced-character-counter" class="advanced-character-counter hidden" aria-label="高级字符计数">
+              <div class="advanced-count-readout"><strong id="advanced-count-value" aria-live="polite">0 个字符</strong><span id="advanced-count-scope">整个文稿</span></div>
+              <button id="advanced-count-options" type="button" aria-label="字符计数选项" title="字符计数选项">⚙</button>
+              <button id="advanced-count-stop" type="button" aria-label="停止高级字符计数" title="停止计数">×</button>
+            </section>
+          </section>
+          <footer class="statusbar"><div class="status-left"><span id="cursor-position">行 1，列 1</span><span id="selection-info" class="selection-info"></span><span class="status-separator"></span><button id="word-count" class="status-count" type="button" aria-controls="character-count-dialog" title="打开高级字符计数">0 个字符</button></div><div class="status-right"><select id="language-select" aria-label="语法模式" title="语法模式"></select><button id="indent-toggle" class="status-button" title="切换缩进">空格: 4</button><select id="encoding-select" aria-label="文本编码" title="编码转换"></select><button id="line-ending-warning" class="status-button hidden" type="button" aria-label="检查混合换行符" aria-haspopup="dialog" aria-controls="line-ending-dialog" title="文稿包含多种换行符" hidden>⚠ 混合</button><select id="eol-select" aria-label="换行符" title="换行符"></select></div></footer>
+        </main>
+      </div>
+      <div id="toast" class="toast" role="status"></div>
+      <div id="settings-popover" class="settings-popover hidden" role="dialog" aria-labelledby="settings-title" aria-modal="false" aria-hidden="true">
+        <div id="settings-title" class="settings-title">编辑器设置</div>
+        <div class="setting-row window-size-setting-row" title="设置新窗口的默认尺寸；留空的尺寸沿用上次窗口大小，首次启动使用 1280×820。更改后立即应用于当前窗口。">
+          <span>默认窗口尺寸</span>
+          <div class="window-size-controls">
+            <input type="number" id="window-width-setting" min="860" max="4000" step="10" placeholder="上次" aria-label="默认窗口宽度（像素；留空使用上次窗口尺寸）" />
+            <span aria-hidden="true">×</span>
+            <input type="number" id="window-height-setting" min="600" max="4000" step="10" placeholder="上次" aria-label="默认窗口高度（像素；留空使用上次窗口尺寸）" />
+            <span aria-hidden="true">px</span>
+          </div>
+        </div>
+        <label class="setting-row"><span>字体大小</span><div class="stepper"><button id="font-down" aria-label="减小字号">−</button><span id="font-size">14</span><button id="font-up" aria-label="增大字号">＋</button></div></label>
+        <label class="setting-row" title="设置编辑器行高为当前字号的倍数。"><span>行高</span><div class="line-height-controls"><input type="number" id="line-height-setting" min="0.1" max="10" step="0.1" value="1.3" aria-label="编辑器行高倍数" /><span aria-hidden="true">×</span></div></label>
+        <label class="setting-row"><span>使用字体连字</span><input type="checkbox" id="ligatures-setting" checked /></label>
+        <label class="setting-row"><span>当前语法的缩进宽度</span><select id="indent-select"><option value="2">2 个空格</option><option value="4">4 个空格</option><option value="8">8 个空格</option><option value="tab">制表符</option><option value="custom">自定义…</option></select></label>
+        <label class="setting-row" title="启用后，按 Return/Enter 新建行时沿用上一行缩进；关闭后插入不带缩进的新行。"><span>自动缩进</span><input type="checkbox" id="auto-indent-setting" /></label>
+        <label class="setting-row" title="作为未单独设置语法的默认值；关闭后仍可用 Alt+Escape 手动补全。文稿词候选只在手动补全时按需扫描。"><span>全局默认：输入时显示补全建议</span><input type="checkbox" id="suggest-completions-setting" /></label>
+        <label class="setting-row" title="仅覆盖活动文稿的语法；选择“跟随全局默认”会移除此语法的单独设置。"><span>当前语法自动补全</span><select id="suggest-completions-language-setting" aria-label="当前语法自动补全策略"><option value="global">跟随全局默认</option><option value="on">开启</option><option value="off">关闭</option></select></label>
+        <label class="setting-row" title="跟随模式默认：代码语法开启、纯文本关闭；也可单独覆盖当前语法。"><span>自动插入匹配括号与引号</span><select id="symbol-balancing-language-setting" aria-label="当前语法自动插入匹配括号与引号"><option value="mode-default">跟随模式默认</option><option value="on">开启</option><option value="off">关闭</option></select></label>
+        <fieldset class="completion-source-settings" aria-describedby="completion-source-note">
+          <legend>当前语法的补全列表包含</legend>
+          <label><input type="checkbox" id="completion-document-setting" aria-label="包含文稿中的词" /> 文稿中的词</label>
+          <label><input type="checkbox" id="completion-syntax-setting" aria-label="包含语法定义的词" /> 语法定义的词</label>
+          <label class="completion-standard-unavailable" title="当前跨平台版本尚无 CotEditor 所用的系统标准词典接口。"><input type="checkbox" id="completion-standard-setting" aria-label="包含标准词" disabled /> 标准词（系统词典不可用）</label>
+          <p id="completion-source-note">来源设置按语法分别保存；标准词由 macOS 系统词典提供，跨平台版本暂不提供。</p>
+          <button id="completion-sources-reset" type="button" class="secondary-button">恢复当前语法默认来源</button>
+        </fieldset>
+        <label class="setting-row" title="打开文稿时检测缩进使用空格还是制表符；样本不足或混合时沿用现有缩进设置。"><span>打开文稿时检测缩进样式</span><input type="checkbox" id="detect-indent-style-setting" /></label>
+        <label class="setting-row" title="启用后，Tab 和 Shift-Tab 会缩进或减少选中行的缩进；关闭时 Tab 会替换选区。"><span>Tab 键缩进选中行</span><input type="checkbox" id="indent-with-tab-setting" /></label>
+        <label class="setting-row" title="启用后，注释符与被注释文本之间会插入一个空格。"><span>注释符后添加空格</span><input type="checkbox" id="comment-spacer-setting" /></label>
+        <label class="setting-row" title="启用后，编辑文稿时会清理本次编辑涉及行末尾的空格和制表符；打开文稿时不会批量改写。"><span>自动删除行尾空白</span><input type="checkbox" id="auto-trim-whitespace-setting" /></label>
+        <label class="setting-row" title="仅在自动删除行尾空白开启时生效；关闭时保留仅由空格或制表符组成的行。"><span>包含纯空白行</span><input type="checkbox" id="trim-whitespace-only-lines-setting" /></label>
+        <label class="setting-row"><span>自动换行</span><input type="checkbox" id="wrap-setting" /></label>
+        <label class="setting-row" title="启用后，自动换行的续行会缩进到本行首个非空白字符的位置；仅在水平自动换行时生效。"><span>缩进换行续行</span><input type="checkbox" id="hanging-indent-setting" /></label>
+        <div class="setting-row page-guide-setting-row hanging-indent-width-row"><label for="hanging-indent-width">附加缩进列</label><div class="page-guide-controls"><input type="number" id="hanging-indent-width" min="0" max="99" step="1" value="0" aria-label="自动换行附加缩进列数" /><span>列</span></div></div>
+        <div class="setting-row page-guide-setting-row" title="设置文稿末尾可滚动的额外空间；0% 停在文末，100% 可将末行滚到编辑区顶部。"><label for="overscroll-rate-setting">文末过度滚动</label><div class="page-guide-controls"><input type="number" id="overscroll-rate-setting" min="0" max="100" step="10" value="0" aria-label="文末过度滚动百分比" /><span>%</span></div></div>
+        <label class="setting-row"><span>纵排文本（适合中日韩文字）</span><input type="checkbox" id="vertical-text-setting" /></label>
+        <label class="setting-row"><span>新文稿默认书写方向</span><select id="writing-direction-setting"><option value="ltr">从左到右</option><option value="rtl">从右到左</option></select></label>
+        <label class="setting-row"><span>新文稿默认语法</span><select id="default-syntax-setting" aria-label="新文稿默认语法"></select></label>
+        <label class="setting-row"><span>显示行号</span><input type="checkbox" id="line-setting" checked /></label>
+        <label class="setting-row"><span>高亮当前行背景</span><input type="checkbox" id="highlight-current-line-setting" /></label>
+        <label class="setting-row" title="显示圆括号、方括号或花括号的匹配位置；不影响自动插入闭括号与引号。"><span>高亮匹配括号</span><input type="checkbox" id="highlight-braces-setting" aria-label="高亮匹配括号" checked /></label>
+        <label class="setting-row"><span>高亮所选文字的其他匹配项</span><input type="checkbox" id="selected-text-matches-setting" checked /></label>
+        <div class="setting-row selection-match-delay-row"><label for="selected-text-match-delay-setting">匹配高亮延迟</label><div class="selection-match-delay-controls"><input type="number" id="selected-text-match-delay-setting" min="0" max="10" step="0.25" value="0.5" inputmode="decimal" aria-label="所选文字匹配高亮延迟（秒）" /><span aria-hidden="true">秒</span></div></div>
+        <label class="setting-row" title="启用后，HTTP/HTTPS URL 会显示为链接；按 Command 或 Control 并单击可在系统浏览器中打开。普通单击仍用于选择文本。"><span>链接文稿中的 URL</span><input type="checkbox" id="link-urls-setting" /></label>
+        <label class="setting-row"><span>显示不可见字符</span><input type="checkbox" id="invisibles-setting" /></label>
+        <div class="invisible-character-options" role="group" aria-label="不可见字符类型">
+          <label><input type="checkbox" id="invisible-newline-setting" /> 换行符</label>
+          <label><input type="checkbox" id="invisible-tab-setting" /> 制表符</label>
+          <label><input type="checkbox" id="invisible-space-setting" /> 空格</label>
+          <label><input type="checkbox" id="invisible-whitespace-setting" /> 其他空白</label>
+          <label><input type="checkbox" id="invisible-control-setting" /> 其他控制字符</label>
+        </div>
+        <label class="setting-row"><span>显示缩进参考线</span><input type="checkbox" id="indent-guides-setting" /></label>
+        <div class="setting-row page-guide-setting-row"><label for="page-guide-setting">显示页导引</label><div class="page-guide-controls"><input type="checkbox" id="page-guide-setting" aria-label="显示页导引" /><input type="number" id="page-guide-column" min="1" max="999" step="1" value="80" aria-label="页导引列数" /></div></div>
+        <label class="setting-row"><span>显示文稿侧栏</span><input type="checkbox" id="sidebar-setting" checked /></label>
+        <label class="setting-row"><span>显示状态栏</span><input type="checkbox" id="status-bar-setting" checked /></label>
+        <label class="setting-row" title="启用后，状态栏使用不透明的界面背景；关闭时背景与编辑器一致。"><span>状态栏使用不透明背景</span><input type="checkbox" id="status-bar-opaque-setting" /></label>
+        <label class="setting-row"><span>显示标签栏</span><input type="checkbox" id="tabbar-setting" checked /></label>
+        <label class="setting-row"><span>显示工具栏</span><input type="checkbox" id="toolbar-setting" checked /></label>
+        <label class="setting-row"><span>显示导航栏</span><input type="checkbox" id="navigation-bar-setting" checked /></label>
+        <div class="setting-tools"><span>调整工具栏项目与顺序</span><button id="toolbar-customize-open" type="button">自定义…</button></div>
+        <label class="setting-row"><span>垂直堆叠分屏编辑器</span><input type="checkbox" id="split-orientation-setting" /></label>
+        <label class="setting-row"><span>界面外观</span><select id="theme-select"><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></label>
+        <label class="setting-row"><span>编辑器主题</span><select id="builtin-theme-select" aria-label="选择内置编辑器主题"></select></label>
+        <div class="setting-tools"><span id="cot-theme-status" aria-live="polite">未加载编辑器主题</span><div><button id="import-cot-theme">导入 .cottheme…</button><button id="clear-cot-theme" disabled>清除</button></div></div>
+        <div class="setting-tools"><span id="script-status" aria-live="polite">桌面脚本仅在应用内可用</span><button id="open-script-folder">脚本文件夹…</button></div>
+        <div class="setting-tools"><span>快捷键可以按需要重新分配</span><button id="shortcut-settings-open" type="button">设置快捷键…</button></div>
+        <div class="setting-tools"><span>管理格式菜单中的语法选项</span><button id="syntax-menu-settings" type="button">自定义语法菜单…</button></div>
+        <div class="setting-tools"><span>查看语法自动识别的重复映射</span><button id="syntax-mapping-conflicts-settings" type="button" disabled>查看映射冲突…</button></div>
+        <div class="setting-tools"><span>创建、排序并管理可插入的文本片段</span><button id="snippet-manager-open" type="button">管理片段…</button></div>
+        <div class="setting-tools"><span>管理仅在选区中手动应用的替换词</span><button id="text-replacements-open" type="button">文本替换词…</button></div>
+        <div class="setting-tools"><span>设置拖入文件时插入的文本规则</span><button id="file-drop-settings-open" type="button">文件拖放…</button></div>
+        <div class="setting-tools"><span id="remote-editing-summary">SSH rmate 远程编辑（默认关闭）</span><button id="remote-editing-open" type="button">外部集成…</button></div>
+        <div class="settings-footnote">设置仅保存在此设备</div>
+      </div>
+      <dialog id="toolbar-customization-dialog" class="toolbar-customization-dialog" aria-labelledby="toolbar-customization-title" aria-describedby="toolbar-customization-description">
+        <div class="shortcuts-head"><div><h2 id="toolbar-customization-title">自定义工具栏</h2><p id="toolbar-customization-description">勾选要显示的项目，并用上移/下移调整排列。</p></div><button id="toolbar-customization-close" class="panel-close" aria-label="关闭工具栏自定义">×</button></div>
+        <ol id="toolbar-customization-list" class="toolbar-customization-list" aria-label="工具栏项目顺序"></ol>
+        <div id="toolbar-customization-status" class="toolbar-customization-status" role="status" aria-live="polite"></div>
+        <div class="dialog-actions toolbar-customization-actions"><button id="toolbar-customization-reset" type="button" class="secondary-button">恢复默认</button><span></span><button id="toolbar-customization-cancel" type="button" class="secondary-button">取消</button><button id="toolbar-customization-apply" type="button" class="primary-button">应用</button></div>
+      </dialog>
+      <dialog id="remote-editing-dialog" class="remote-editing-dialog" aria-labelledby="remote-editing-title" aria-describedby="remote-editing-description">
+        <form id="remote-editing-form">
+          <div class="shortcuts-head"><div><h2 id="remote-editing-title">外部集成</h2><p id="remote-editing-description">启用后接收 SSH 转发的 rmate 文稿；服务仅绑定 127.0.0.1。</p></div><button id="remote-editing-close" type="button" class="panel-close" aria-label="关闭外部集成设置">×</button></div>
+          <label class="page-setting-row"><span>接受 rmate 远程编辑连接</span><input id="remote-editing-enabled" type="checkbox"></label>
+          <label class="page-setting-row"><span>本机监听端口</span><input id="remote-editing-port" type="number" min="1" max="65535" step="1" value="52698" inputmode="numeric"></label>
+          <p id="remote-editing-status" class="remote-editing-status" role="status" aria-live="polite">远程编辑默认关闭。</p>
+          <div class="remote-editing-help"><strong>SSH 反向转发示例</strong><code id="remote-editing-ssh-command">ssh -R 52698:127.0.0.1:52698 用户名@远端主机</code><span>连接后，在远端运行 <code id="remote-editing-client-command">rmate -p 52698 文件名</code>。若连接中断，文稿仍可编辑，但需要另存为本机文件。</span></div>
+          <div class="dialog-actions"><button id="remote-editing-cancel" type="button" class="secondary-button">取消</button><button id="remote-editing-apply" type="submit" class="primary-button">应用</button></div>
+        </form>
+      </dialog>
+      <dialog id="donation-dialog" class="remote-editing-dialog" aria-labelledby="donation-title" aria-describedby="donation-description">
+        <form id="donation-form">
+          <div class="shortcuts-head"><div><h2 id="donation-title">捐赠</h2><p id="donation-description">CotEdit 向所有人免费提供全部功能。您可以通过请作者喝杯咖啡来支持这个项目。</p></div><button id="donation-close" type="button" class="panel-close" aria-label="关闭捐赠窗口">×</button></div>
+          <div class="remote-editing-help"><span>应用内捐赠仅在 App Store 分发的 CotEditor 中提供；此跨平台版本提供外部支持入口。</span></div>
+          <div class="dialog-actions"><button id="donation-appstore" type="button" class="secondary-button">在 App Store 中打开</button><button id="donation-sponsors" type="button" class="secondary-button">打开 GitHub Sponsors</button><button id="donation-cancel" type="button" class="primary-button">关闭</button></div>
+        </form>
+      </dialog>
+      <dialog id="custom-width-dialog" class="remote-editing-dialog" aria-labelledby="custom-width-title" aria-describedby="custom-width-description">
+        <form id="custom-width-form">
+          <div class="shortcuts-head"><div><h2 id="custom-width-title">自定义宽度</h2><p id="custom-width-description">Tab 显示宽度与当前语法缩进宽度分开设置。</p></div><button id="custom-width-close" type="button" class="panel-close" aria-label="关闭自定义宽度设置">×</button></div>
+          <label class="page-setting-row"><span id="custom-width-label">Tab 显示列数</span><input id="custom-width-value" type="number" min="1" max="99" step="1" value="4" inputmode="numeric"></label>
+          <p id="custom-width-status" class="remote-editing-status" role="status" aria-live="polite">请输入 1–99 的整数。</p>
+          <div class="dialog-actions"><button id="custom-width-cancel" type="button" class="secondary-button">取消</button><button type="submit" class="primary-button">应用</button></div>
+        </form>
+      </dialog>
+      <dialog id="recovery-dialog" class="recovery-dialog" aria-labelledby="recovery-title" aria-describedby="recovery-description">
+        <div class="shortcuts-head"><div><h2 id="recovery-title">恢复未保存文稿</h2><p id="recovery-description">这些草稿仅保存在本机；恢复会在当前窗口以新标签打开，稍后处理不会删除它们。</p></div><button id="recovery-close" class="panel-close" aria-label="稍后处理恢复草稿">×</button></div>
+        <p id="recovery-status" class="recovery-status" role="status" aria-live="polite"></p>
+        <div id="recovery-list" class="recovery-list" role="group" aria-label="可恢复文稿"></div>
+        <div class="recovery-actions">
+          <div><button id="recovery-delete-selected" type="button" class="secondary-button">删除所选</button><button id="recovery-clear-all" type="button" class="secondary-button">清空全部…</button></div>
+          <div><button id="recovery-later" type="button" class="secondary-button">稍后处理</button><button id="recovery-restore-selected" type="button" class="primary-button">恢复所选</button><button id="recovery-restore-all" type="button" class="secondary-button">恢复全部</button></div>
+        </div>
+      </dialog>
+      <dialog id="shortcuts-dialog" class="shortcuts-dialog" aria-labelledby="shortcuts-title">
+        <div class="shortcuts-head"><div><h2 id="shortcuts-title">键盘快捷键</h2><p>点击快捷键录入新组合；菜单与列表会同步更新。</p></div><div class="shortcut-head-actions"><button id="shortcuts-reset-all" type="button" class="secondary-button">恢复全部默认</button><button id="shortcuts-close" class="panel-close" aria-label="关闭键盘快捷键">×</button></div></div>
+        <p id="shortcut-capture-status" class="shortcut-capture-status" role="status" aria-live="polite">按平台显示 · 默认键位与 CotEditor 对照</p>
+        <label class="shortcuts-filter"><span class="sr-only">筛选快捷键</span><input id="shortcuts-query" type="search" placeholder="搜索命令或按键…" autocomplete="off"></label>
+        <div id="shortcuts-list" class="shortcuts-list" aria-live="polite"></div>
+      </dialog>
+      <dialog id="help-dialog" class="help-dialog" aria-labelledby="help-title" aria-describedby="help-description">
+        <div class="shortcuts-head"><div><h2 id="help-title">CotEdit 使用说明</h2><p>纯文本与代码编辑 · 桌面版</p></div><button id="help-close" class="panel-close" aria-label="关闭使用说明">×</button></div>
+        <div class="help-content">
+          <p id="help-description">从“文件”菜单打开或新建文稿；使用查找、文件夹浏览、语法模式和检查器完成常见文本工作。</p>
+          <section><h3>常用操作</h3><ul><li>“文件 › 打开文件夹”进入目录浏览；“查找 › 在文件夹中查找”搜索所选文件夹中的文本。</li><li>“格式”可调整编码、换行、缩进与换行显示；混合换行和不可编码字符可从检查器定位。</li><li>“视图 › 检查器”提供文稿信息、大纲、Unicode 字符与编码警告视图。</li></ul></section>
+          <section><h3>平台差异</h3><p>快捷键帮助按当前平台显示。macOS Cocoa 原生服务、菜单 alternate 项和窗口排序行为不能由 Linux 上的 UI smoke 完全验证；本跨平台实现不承诺与 CotEditor 完全 1:1。</p></section>
+          <div class="help-actions"><button id="help-open-shortcuts" class="primary-button">查看键盘快捷键</button></div>
+        </div>
+      </dialog>
+      <dialog id="page-setup-dialog" class="page-setup-dialog" aria-labelledby="page-setup-title" aria-describedby="page-setup-description">
+        <form id="page-setup-form">
+          <div class="shortcuts-head"><div><h2 id="page-setup-title">页面设置</h2><p id="page-setup-description">这些选项会应用于后续打印任务。</p></div><button id="page-setup-close" type="button" class="panel-close" aria-label="关闭页面设置">×</button></div>
+          <label class="page-setting-row"><span>纸张</span><select id="print-page-size"><option value="A4">A4</option><option value="A3">A3</option><option value="Letter">US Letter</option><option value="Legal">US Legal</option><option value="Tabloid">Tabloid</option></select></label>
+          <label class="page-setting-row"><span>方向</span><select id="print-orientation"><option value="portrait">纵向</option><option value="landscape">横向</option></select></label>
+          <label class="page-setting-row"><span>页边距</span><select id="print-margins"><option value="normal">普通</option><option value="narrow">窄</option><option value="wide">宽</option></select></label>
+          <label class="page-setting-row"><span>打印文稿标题</span><input id="print-title" type="checkbox" checked></label>
+          <label class="page-setting-row"><span>打印行号</span><input id="print-line-numbers" type="checkbox"></label>
+          <label class="page-setting-row"><span>代码字号</span><select id="print-font-size"><option value="8">8 pt</option><option value="9">9 pt</option><option value="10">10 pt</option><option value="11">11 pt</option><option value="12">12 pt</option><option value="14">14 pt</option><option value="16">16 pt</option><option value="18">18 pt</option></select></label>
+          <div class="dialog-actions"><button id="page-setup-cancel" type="button" class="secondary-button">取消</button><button type="submit" class="primary-button">应用</button></div>
+        </form>
+      </dialog>
+      <dialog id="line-ending-dialog" class="line-ending-dialog" aria-labelledby="line-ending-title" aria-describedby="line-ending-description">
+        <div class="shortcuts-head"><div><h2 id="line-ending-title">混合换行符</h2><p id="line-ending-description">文稿包含多种行尾。可保留混合格式，或按主流格式统一。</p></div><button id="line-ending-close" class="panel-close" aria-label="关闭换行符检查器">×</button></div>
+        <ul id="line-ending-report-list" class="line-ending-report-list" aria-label="换行符类型和行号"></ul>
+        <div class="dialog-actions"><button id="line-ending-normalize" class="secondary-button" type="button">统一为主流格式</button></div>
+      </dialog>
+      <dialog id="character-count-dialog" class="character-count-dialog" aria-labelledby="character-count-title" aria-describedby="character-count-description">
+        <div class="shortcuts-head"><div><h2 id="character-count-title">高级字符计数</h2><p id="character-count-description">选择计数单位与文本预处理方式；正在计数时更改后会立即更新。</p></div><button id="character-count-close" type="button" class="panel-close" aria-label="关闭高级字符计数选项">×</button></div>
+        <div class="character-count-content">
+          <section class="count-option-group" aria-labelledby="count-whitespace-heading">
+            <h3 id="count-whitespace-heading">空白处理</h3>
+            <label class="count-option-check"><input id="count-ignores-newlines" type="checkbox">忽略换行符</label>
+            <label class="count-option-check"><input id="count-ignores-whitespaces" type="checkbox">忽略空白</label>
+            <label id="count-collapse-row" class="count-option-check"><input id="count-collapse-whitespace" type="checkbox">连续空白计为一个空格</label>
+          </section>
+          <section class="count-option-group" aria-labelledby="count-unit-heading">
+            <h3 id="count-unit-heading">计数</h3>
+            <label class="count-option-row"><span>单位</span><select id="count-unit" aria-label="计数单位"><option value="grapheme">字素簇</option><option value="scalar">Unicode 标量</option><option value="utf16">UTF-16 单元</option><option value="byte">字节</option></select></label>
+            <p id="count-unit-description" class="count-unit-description"></p>
+            <label id="count-encoding-row" class="count-option-row hidden"><span>编码</span><select id="count-encoding" aria-label="字节编码"></select></label>
+            <div id="count-normalization-row" class="count-normalization-row hidden">
+              <label class="count-option-check"><input id="count-normalizes" type="checkbox">规范化：</label>
+              <select id="count-normalization-form" aria-label="规范化形式"><optgroup label="标准形式"><option value="NFD" title="规范分解">NFD</option><option value="NFC" title="规范分解后合成">NFC</option><option value="NFKD" title="兼容分解">NFKD</option><option value="NFKC" title="兼容分解后合成">NFKC</option><option value="NFKC_CF" title="兼容分解、大小写折叠并删除默认忽略码点">NFKC Case-Fold</option></optgroup><optgroup label="HFS+ 修改型"><option value="MODIFIED_NFD" title="HFS+ 使用的历史修改型规范分解">Modified NFD</option><option value="MODIFIED_NFC" title="对应 Modified NFD 的历史修改型规范合成">Modified NFC</option></optgroup></select>
+            </div>
+          </section>
+          <p id="character-count-error" class="dialog-error" role="status" aria-live="polite"></p>
+          <div class="dialog-actions"><button id="character-count-cancel" type="button" class="secondary-button">取消</button><button id="character-count-apply" type="button" class="primary-button">开始计数</button></div>
+        </div>
+      </dialog>
+      <span id="line-ending-live" class="sr-only" aria-live="polite"></span>
+      <dialog id="goto-line-dialog" class="goto-line-dialog" aria-labelledby="goto-line-title" aria-describedby="goto-line-description goto-line-error">
+        <form id="goto-line-form" novalidate>
+          <h2 id="goto-line-title">转到行</h2>
+          <p id="goto-line-description">输入要跳转的行号。</p>
+          <label for="goto-line-number">行号</label>
+          <input id="goto-line-number" name="line" type="number" min="1" step="1" required />
+          <div id="goto-line-error" class="dialog-error" aria-live="polite"></div>
+          <div class="dialog-actions"><button id="goto-line-cancel" type="button" class="secondary-button">取消</button><button type="submit" class="primary-button">转到</button></div>
+        </form>
+      </dialog>
+      <dialog id="custom-surround-dialog" class="goto-line-dialog" aria-labelledby="custom-surround-title" aria-describedby="custom-surround-description">
+        <form id="custom-surround-form" novalidate>
+          <h2 id="custom-surround-title">自定义包围选区</h2>
+          <p id="custom-surround-description">在所选文本前后插入自定义字符串。</p>
+          <label for="custom-surround-begin">开始字符串</label>
+          <input id="custom-surround-begin" name="begin" type="text" maxlength="256" autocomplete="off" />
+          <label for="custom-surround-end">结束字符串</label>
+          <input id="custom-surround-end" name="end" type="text" maxlength="256" autocomplete="off" />
+          <div class="dialog-actions"><button id="custom-surround-cancel" type="button" class="secondary-button">取消</button><button type="submit" class="primary-button">包围</button></div>
+        </form>
+      </dialog>
+      <dialog id="unicode-codepoint-dialog" class="goto-line-dialog" aria-labelledby="unicode-codepoint-title" aria-describedby="unicode-codepoint-description unicode-codepoint-error">
+        <form id="unicode-codepoint-form" novalidate>
+          <h2 id="unicode-codepoint-title">按 Unicode 码点插入</h2>
+          <p id="unicode-codepoint-description">输入十六进制码点，例如 U+1F600、0x1F600、\u1F600 或 1F600；确认后替换当前选区。</p>
+          <label for="unicode-codepoint-input">Unicode 码点</label>
+          <input id="unicode-codepoint-input" name="codePoint" type="text" maxlength="8" placeholder="U+1F600" autocomplete="off" spellcheck="false" aria-describedby="unicode-codepoint-description unicode-codepoint-error" />
+          <section id="unicode-codepoint-history-section" class="unicode-codepoint-history-section" aria-labelledby="unicode-codepoint-history-title" hidden>
+            <h3 id="unicode-codepoint-history-title">最近使用</h3>
+            <div id="unicode-codepoint-history" class="unicode-codepoint-history" role="group" aria-labelledby="unicode-codepoint-history-title"></div>
+          </section>
+          <div class="unicode-codepoint-preview"><span>预览</span><output id="unicode-codepoint-preview" aria-label="Unicode 字符预览" aria-live="polite">—</output><code id="unicode-codepoint-label"></code></div>
+          <p id="unicode-codepoint-error" class="dialog-error" role="status" aria-live="polite"></p>
+          <div class="dialog-actions"><button id="unicode-codepoint-cancel" type="button" class="secondary-button">取消</button><button id="unicode-codepoint-insert" type="submit" class="primary-button" disabled>插入</button></div>
+        </form>
+      </dialog>
+      <dialog id="color-code-dialog" class="color-code-dialog" aria-labelledby="color-code-title" aria-describedby="color-code-description color-code-error">
+        <form id="color-code-form" novalidate>
+          <h2 id="color-code-title">编辑颜色代码</h2>
+          <p id="color-code-description">编辑选中的颜色代码，或选择颜色与输出格式；确认后替换当前选区。</p>
+          <label for="color-code-value">颜色代码</label>
+          <input id="color-code-value" name="colorCode" type="text" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="color-code-description color-code-error" />
+          <div class="color-code-preview-row">
+            <output id="color-code-swatch" class="color-code-swatch" role="img" aria-label="颜色预览" aria-live="polite"></output>
+            <label class="color-code-picker-label" for="color-code-picker">选色</label>
+            <input id="color-code-picker" type="color" value="#000000" aria-label="选择颜色" />
+          </div>
+          <label for="color-code-alpha">不透明度 <output id="color-code-alpha-value">100%</output></label>
+          <input id="color-code-alpha" class="color-code-alpha" type="range" min="0" max="100" step="1" value="100" aria-label="不透明度百分比" />
+          <label for="color-code-format">输出格式</label>
+          <select id="color-code-format" name="format">
+            <option value="hex">十六进制</option><option value="hexAlpha">十六进制（含 Alpha）</option>
+            <option value="shortHex">短十六进制</option><option value="shortHexAlpha">短十六进制（含 Alpha）</option>
+            <option value="rgb">CSS RGB</option><option value="rgba">CSS RGBa</option>
+            <option value="hsl">CSS HSL</option><option value="hsla">CSS HSLa</option>
+            <option value="hwb">CSS HWB</option><option value="hwbAlpha">CSS HWB（含 Alpha）</option>
+            <option value="keyword">CSS 关键字</option>
+          </select>
+          <p id="color-code-error" class="dialog-error" role="status" aria-live="polite"></p>
+          <div class="dialog-actions"><button id="color-code-cancel" type="button" class="secondary-button">取消</button><button id="color-code-insert" type="submit" class="primary-button" disabled>插入</button></div>
+        </form>
+      </dialog>
+      <dialog id="pattern-sort-dialog" class="pattern-sort-dialog" aria-labelledby="pattern-sort-title" aria-describedby="pattern-sort-description pattern-sort-error">
+        <form id="pattern-sort-form" novalidate>
+          <div class="shortcuts-head"><div><h2 id="pattern-sort-title">按模式排序</h2><p id="pattern-sort-description">选择每行用于排序的文本部分。</p></div><button id="pattern-sort-close" type="button" class="panel-close" aria-label="关闭按模式排序">×</button></div>
+          <div class="pattern-sort-content">
+            <div class="pattern-sort-sample"><span>样例</span><code id="pattern-sort-sample-line" aria-describedby="pattern-sort-sample-description"></code><span id="pattern-sort-sample-description" class="sr-only">高亮部分为排序键。</span><span id="pattern-sort-preview" aria-live="polite"></span></div>
+            <label class="pattern-sort-row"><span>排序键</span><select id="pattern-sort-key"><option value="column">列</option><option value="entire">整行</option><option value="regexp">正则表达式</option></select></label>
+            <div id="pattern-sort-column-fields" class="pattern-sort-fields">
+              <label class="pattern-sort-row"><span>分隔符</span><input id="pattern-sort-delimiter" type="text" value="," maxlength="32" autocomplete="off" aria-label="分隔符"></label>
+              <label class="pattern-sort-row"><span>列序号</span><input id="pattern-sort-column" type="number" min="1" max="9999" step="1" value="1"></label>
+            </div>
+            <div id="pattern-sort-regexp-fields" class="pattern-sort-fields hidden">
+              <label class="pattern-sort-row"><span>正则表达式</span><input id="pattern-sort-regexp" type="text" maxlength="512" autocomplete="off" spellcheck="false" placeholder="例如：^(\\w+)"></label>
+              <label class="pattern-sort-check"><input id="pattern-sort-regexp-ignore-case" type="checkbox" checked>忽略大小写</label>
+              <label class="pattern-sort-check"><input id="pattern-sort-use-capture" type="checkbox">使用捕获组</label>
+              <label class="pattern-sort-row"><span>捕获组序号</span><input id="pattern-sort-capture-index" type="number" min="0" max="99" step="1" value="1"></label>
+            </div>
+            <div class="pattern-sort-options">
+              <h3>排序选项</h3>
+              <label class="pattern-sort-check"><input id="pattern-sort-ignore-case" type="checkbox" checked>忽略大小写</label>
+              <label class="pattern-sort-check"><input id="pattern-sort-localized" type="checkbox" checked>遵循语言规则</label>
+              <label class="pattern-sort-check"><input id="pattern-sort-numeric" type="checkbox" checked>数字按数值排序</label>
+              <label class="pattern-sort-check"><input id="pattern-sort-keep-first" type="checkbox">首行保持在顶部</label>
+              <label class="pattern-sort-check"><input id="pattern-sort-descending" type="checkbox">降序</label>
+            </div>
+            <div id="pattern-sort-error" class="dialog-error" role="status" aria-live="polite"></div>
+            <div class="dialog-actions"><button id="pattern-sort-cancel" type="button" class="secondary-button">取消</button><button id="pattern-sort-submit" type="submit" class="primary-button">排序</button></div>
+          </div>
+        </form>
+      </dialog>
+      <dialog id="syntax-menu-dialog" class="syntax-menu-dialog" aria-labelledby="syntax-menu-title" aria-describedby="syntax-menu-description">
+        <div class="shortcuts-head">
+          <div><h2 id="syntax-menu-title">自定义语法菜单</h2><p id="syntax-menu-description">取消勾选的语法会从语法选择菜单中隐藏；当前文稿使用中的隐藏语法仍会显示为不可选状态。</p></div>
+          <button id="syntax-menu-show-all" class="secondary-button" type="button">显示全部</button>
+        </div>
+        <div class="syntax-menu-content">
+          <label class="shortcuts-filter"><span class="sr-only">筛选语法</span><input id="syntax-menu-filter" type="search" aria-label="筛选语法" placeholder="筛选语法名称…"></label>
+          <p id="syntax-menu-count" class="syntax-menu-count" role="status" aria-live="polite"></p>
+          <p id="syntax-menu-drop-hint" class="syntax-menu-drop-hint" role="status" aria-live="polite">也可将一个或多个 `.cotsyntax` 文件夹拖到下方列表导入（最多 20 个）；拖放不会切换当前文稿语法。</p>
+          <div id="syntax-menu-list" class="syntax-menu-list" role="group" aria-label="可显示的语法"></div>
+          <div class="dialog-actions"><button id="syntax-menu-cancel" type="button" class="secondary-button">取消</button><button id="syntax-menu-apply" type="button" class="primary-button">应用</button></div>
+        </div>
+      </dialog>
+      <dialog id="syntax-mapping-conflicts-dialog" class="syntax-mapping-dialog" aria-labelledby="syntax-mapping-conflicts-title" aria-describedby="syntax-mapping-conflicts-description">
+        <div class="shortcuts-head"><div><h2 id="syntax-mapping-conflicts-title">语法文件映射冲突</h2><p id="syntax-mapping-conflicts-description">以下文件映射规则已登记在多个语法中。自动识别会使用列表中优先级最高的语法；要解决冲突，请编辑相应语法定义。</p></div></div>
+        <div class="syntax-mapping-content"><div id="syntax-mapping-conflict-tables" class="syntax-mapping-conflict-tables"></div><div class="dialog-actions"><button id="syntax-mapping-conflicts-close" type="button" class="primary-button">关闭</button></div></div>
+      </dialog>
+      <dialog id="quick-actions-dialog" class="quick-actions-dialog" aria-labelledby="quick-actions-title" aria-describedby="quick-actions-description">
+        <div class="quick-actions-shell">
+          <div class="quick-actions-heading">
+            <div><h2 id="quick-actions-title">快速操作</h2><p id="quick-actions-description">搜索并执行菜单命令</p></div>
+            <kbd aria-hidden="true">Escape</kbd>
+          </div>
+          <label class="quick-actions-search">
+            <span class="quick-actions-search-icon" aria-hidden="true">⌕</span>
+            <input id="quick-actions-query" type="search" role="combobox" aria-label="搜索操作" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="true" aria-controls="quick-actions-results" aria-describedby="quick-actions-status" autocomplete="off" spellcheck="false" placeholder="输入命令名称、菜单路径或快捷键…">
+            <kbd aria-hidden="true">↵</kbd>
+          </label>
+          <div id="quick-actions-results" class="quick-actions-results" role="listbox" aria-label="菜单命令" aria-busy="false"></div>
+          <p id="quick-actions-status" class="quick-actions-status" role="status" aria-live="polite">↑↓ 选择 · Enter 执行 · Escape 关闭</p>
+        </div>
+      </dialog>
+      <dialog id="snippet-manager-dialog" class="snippet-manager-dialog resizable-settings-dialog" aria-labelledby="snippet-manager-title" aria-describedby="snippet-manager-description">
+        <div class="shortcuts-head"><div><h2 id="snippet-manager-title">片段</h2><p id="snippet-manager-description">创建命名片段，按语法筛选，并调整菜单顺序。</p></div><button id="snippet-manager-close" class="panel-close" type="button" aria-label="关闭片段管理器">×</button></div>
+        <div class="snippet-manager-shell">
+          <section class="snippet-manager-list-pane" aria-label="片段顺序">
+            <div class="snippet-manager-list-tools"><button id="snippet-new" type="button" class="primary-button">新建</button><button id="snippet-move-up" type="button" aria-label="上移片段" disabled>↑</button><button id="snippet-move-down" type="button" aria-label="下移片段" disabled>↓</button></div>
+            <div id="snippet-manager-list" class="snippet-manager-list" role="list" aria-label="已保存片段"></div>
+          </section>
+          <form id="snippet-manager-form" class="snippet-manager-form" novalidate>
+            <label for="snippet-name">名称</label>
+            <input id="snippet-name" name="name" type="text" maxlength="80" autocomplete="off" required>
+            <label for="snippet-scope">适用语法</label>
+            <select id="snippet-scope" name="scope"></select>
+            <label for="snippet-shortcut-record">快捷键</label>
+            <div class="snippet-shortcut-controls"><button id="snippet-shortcut-record" type="button" aria-pressed="false">未设置</button><button id="snippet-shortcut-clear" type="button" disabled>清除</button></div>
+            <p id="snippet-shortcut-status" class="snippet-token-help" role="status" aria-live="polite">快捷键仅在编辑器有焦点时触发。</p>
+            <label for="snippet-format">插入内容</label>
+            <textarea id="snippet-format" name="format" rows="10" maxlength="12000" spellcheck="false" aria-describedby="snippet-token-help"></textarea>
+            <p id="snippet-token-help" class="snippet-token-help">使用 <code>&lt;&lt;&lt;SELECTION&gt;&gt;&gt;</code> 插入当前选区，使用 <code>&lt;&lt;&lt;CURSOR&gt;&gt;&gt;</code> 设置插入光标；每个光标标记都会创建一个光标位置。</p>
+            <p id="snippet-manager-error" class="dialog-error" role="status" aria-live="polite"></p>
+            <div class="dialog-actions"><button id="snippet-delete" type="button" class="secondary-button" disabled>删除</button><span class="snippet-manager-spacer"></span><button id="snippet-manager-cancel" type="button" class="secondary-button">关闭</button><button id="snippet-save" type="submit" class="primary-button">保存</button></div>
+          </form>
+        </div>
+      </dialog>
+      <dialog id="text-replacement-manager-dialog" class="text-replacement-manager-dialog resizable-settings-dialog" aria-labelledby="text-replacement-manager-title" aria-describedby="text-replacement-manager-description">
+        <div class="shortcuts-head"><div><h2 id="text-replacement-manager-title">文本替换词</h2><p id="text-replacement-manager-description">“替换文本”只处理所选文字；不自动改写输入，也不读取或同步 macOS 系统替换词。</p></div><button id="text-replacement-manager-close" class="panel-close" type="button" aria-label="关闭文本替换词管理器">×</button></div>
+        <div class="snippet-manager-shell">
+          <section class="snippet-manager-list-pane" aria-label="文本替换词列表">
+            <div class="snippet-manager-list-tools"><button id="text-replacement-new" type="button" class="primary-button">新建</button></div>
+            <div id="text-replacement-list" class="snippet-manager-list" role="list" aria-label="已保存文本替换词"></div>
+          </section>
+          <form id="text-replacement-form" class="snippet-manager-form" novalidate>
+            <label for="text-replacement-trigger">查找文字（触发词）</label>
+            <input id="text-replacement-trigger" name="trigger" type="text" maxlength="4096" autocomplete="off" required>
+            <label for="text-replacement-value">替换为</label>
+            <textarea id="text-replacement-value" name="replacement" rows="6" maxlength="4096" spellcheck="false"></textarea>
+            <label class="count-option-check"><input id="text-replacement-enabled" type="checkbox" checked><span>启用此规则</span></label>
+            <p id="text-replacement-manager-error" class="dialog-error" role="status" aria-live="polite"></p>
+            <div class="dialog-actions"><button id="text-replacement-delete" type="button" class="secondary-button" disabled>删除</button><span class="snippet-manager-spacer"></span><button id="text-replacement-cancel" type="button" class="secondary-button">关闭</button><button id="text-replacement-save" type="submit" class="primary-button">保存</button></div>
+          </form>
+        </div>
+      </dialog>
+      <dialog id="file-drop-settings-dialog" class="file-drop-settings-dialog resizable-settings-dialog" aria-labelledby="file-drop-settings-title" aria-describedby="file-drop-settings-description">
+        <div class="shortcuts-head"><div><h2 id="file-drop-settings-title">文件拖放</h2><p id="file-drop-settings-description">规则从上到下匹配；语法和扩展名均符合的第一条规则生效。留空表示适用于全部。</p></div><button id="file-drop-settings-close" class="panel-close" type="button" aria-label="关闭文件拖放规则设置">×</button></div>
+        <div class="file-drop-settings-shell">
+          <section class="file-drop-rules-pane" aria-label="文件拖放规则顺序">
+            <div class="file-drop-rule-tools"><button id="file-drop-rule-new" type="button" class="primary-button">新建规则</button><button id="file-drop-rule-up" type="button" aria-label="上移规则" disabled>↑</button><button id="file-drop-rule-down" type="button" aria-label="下移规则" disabled>↓</button></div>
+            <div id="file-drop-rule-list" class="file-drop-rule-list" role="listbox" aria-label="文件拖放规则"></div>
+          </section>
+          <form id="file-drop-rule-form" class="file-drop-rule-form" novalidate>
+            <label for="file-drop-rule-scope">适用语法</label><select id="file-drop-rule-scope" name="scope"></select>
+            <label for="file-drop-rule-extensions">扩展名</label><input id="file-drop-rule-extensions" name="extensions" type="text" maxlength="1200" autocomplete="off" placeholder="全部" aria-describedby="file-drop-rule-extensions-help">
+            <p id="file-drop-rule-extensions-help" class="file-drop-help">多个扩展名用逗号分隔，不带句点；留空表示全部文件。</p>
+            <label for="file-drop-rule-description">说明（可选）</label><input id="file-drop-rule-description" name="description" type="text" maxlength="120" autocomplete="off">
+            <label for="file-drop-rule-format">插入格式</label><textarea id="file-drop-rule-format" name="format" rows="8" maxlength="8192" spellcheck="false" aria-describedby="file-drop-variable-help"></textarea>
+            <div id="file-drop-variable-buttons" class="file-drop-variable-buttons" aria-label="插入变量"></div>
+            <p id="file-drop-variable-help" class="file-drop-help">支持路径、文件名、扩展名、目录、FILECONTENT 和 IMAGEWIDTH/IMAGEHEIGHT。正文或图像尺寸仅在用户主动拖放且匹配模板明确引用时读取：正文限普通 UTF-8 文本，每个文件及每次拖放最多 64 KiB；图片只读取有界文件头，最多 1 MiB/文件、4 MiB/次，支持 PNG、GIF、JPEG、BMP、WebP，不解码图片。请求内容或尺寸时遇到目录、符号链接、非 UTF-8、二进制、无法识别或超限会取消整次插入。macOS .textClipping 尚不支持。</p>
+            <p id="file-drop-rule-status" class="file-drop-status" role="status" aria-live="polite"></p>
+            <div class="dialog-actions"><button id="file-drop-rule-delete" type="button" class="secondary-button">删除规则</button><button id="file-drop-rule-reset" type="button" class="secondary-button">恢复默认</button><span class="file-drop-rule-spacer"></span><button id="file-drop-settings-cancel" type="button" class="secondary-button">取消</button><button id="file-drop-rule-save" type="button" class="primary-button">保存规则</button></div>
+          </form>
+        </div>
+      </dialog>
+      <dialog id="multiple-replace-dialog" class="multiple-replace-dialog resizable-settings-dialog" aria-labelledby="multiple-replace-title" aria-describedby="multiple-replace-description">
+        <div class="shortcuts-head"><div><h2 id="multiple-replace-title">多重替换</h2><p id="multiple-replace-description">按顺序执行多条查找与替换规则；整组修改可作为一次撤销操作。</p></div><button id="multiple-replace-close" class="panel-close" type="button" aria-label="关闭多重替换">×</button></div>
+        <div class="multiple-replace-shell">
+          <section class="multiple-replace-definitions" aria-label="替换定义">
+            <div class="multiple-replace-definition-tools"><button id="multiple-replace-new" type="button" class="primary-button">新建定义</button><button id="multiple-replace-import" type="button" class="secondary-button" title="导入 CotEditor .cotrpl 或 TSV 定义">导入…</button><button id="multiple-replace-definition-up" type="button" aria-label="上移定义" disabled>↑</button><button id="multiple-replace-definition-down" type="button" aria-label="下移定义" disabled>↓</button></div>
+            <input id="multiple-replace-import-input" type="file" accept=".cotrpl,.tsv,.json,.json5" multiple hidden>
+            <div id="multiple-replace-definition-list" class="multiple-replace-definition-list" role="listbox" aria-label="已保存替换定义；可拖放 CotEditor .cotrpl 或 TSV 文件导入"></div>
+          </section>
+          <form id="multiple-replace-form" class="multiple-replace-form" novalidate>
+            <label for="multiple-replace-name">定义名称</label><input id="multiple-replace-name" maxlength="80" autocomplete="off" required>
+            <label class="multiple-replace-scope"><input id="multiple-replace-in-selection" type="checkbox">仅在当前选区中替换</label>
+            <label class="multiple-replace-scope" title="CotEditor textualOptions.caseInsensitive；仅作用于文字规则"><input id="multiple-replace-textual-case-insensitive" type="checkbox">文字规则忽略大小写（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor textualOptions.literal（位值 2）；要求逐字符相同，关闭文字规则的 Unicode 规范等价匹配"><input id="multiple-replace-textual-literal" type="checkbox">文字规则要求逐字符相同</label>
+            <label class="multiple-replace-scope" title="CotEditor textualOptions.anchored（位值 8）；文字规则只匹配整个文稿或每个选区范围的开头，不逐行匹配"><input id="multiple-replace-textual-anchored" type="checkbox">文字规则仅匹配范围开头（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.caseInsensitive；仅作用于正则规则；JavaScript RegExp 语义可能与 ICU 不同"><input id="multiple-replace-regex-case-insensitive" type="checkbox">正则规则忽略大小写（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.allowCommentsAndWhitespace（位值 2）；忽略未转义空白和 # 行注释；字符类与 \\Q…\\E 引用区中的内容保留"><input id="multiple-replace-regex-allow-comments-and-whitespace" type="checkbox">正则模式忽略空白与 # 注释（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.ignoreMetacharacters（位值 4）；整个正则查找模式按字面文本匹配，不解释正则元字符；仍作用于正则规则"><input id="multiple-replace-regex-ignore-metacharacters" type="checkbox">正则模式按字面文本匹配（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.dotMatchesLineSeparators（位值 8）；仅作用于正则规则；映射到 JavaScript RegExp 的 Unicode 模式 s 标记"><input id="multiple-replace-regex-dot-matches-line-separators" type="checkbox">正则中的点号匹配换行符（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.anchorsMatchLines（位值 16）；仅作用于正则规则；近似映射到 JavaScript RegExp 的 m 标记，换行符语义与 ICU 不完全相同"><input id="multiple-replace-regex-anchors-match-lines" type="checkbox">正则锚点匹配每行（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.useUnixLineSeparators（位值 32）；仅将 LF 视作行分隔符；与 JavaScript/ICU 的完整正则语义不保证等价"><input id="multiple-replace-regex-unix-line-separators" type="checkbox">正则仅将 LF 视为行分隔符（定义级）</label>
+            <label class="multiple-replace-scope" title="CotEditor regexOptions.useUnicodeWordBoundaries（位值 64）；对正则中的 \b/\B 使用 Intl.Segmenter 的 UAX #29 词段边界近似校验，不等同于原生 Foundation/ICU"><input id="multiple-replace-regex-unicode-word-boundaries" type="checkbox">正则使用 Unicode 词边界（定义级）</label>
+            <label class="multiple-replace-scope" title="仅作用于非正则文字规则"><input id="multiple-replace-matches-full-word" type="checkbox">仅匹配整词（不影响正则规则）</label>
+            <label class="multiple-replace-scope" title="仅作用于正则规则；将 \\0、\\t、\\n、\\r、引号与双反斜线解码一次"><input id="multiple-replace-unescapes-replacement" type="checkbox">正则替换文本：解码转义序列</label>
+            <div class="multiple-replace-rule-heading" aria-hidden="true"><span>启用</span><span>查找</span><span>替换为</span><span>正则</span><span>忽略大小写</span><span>操作</span></div>
+            <div id="multiple-replace-rules" class="multiple-replace-rules" role="group" aria-label="替换规则"></div>
+            <button id="multiple-replace-add-rule" class="secondary-button" type="button">添加替换规则</button>
+            <p id="multiple-replace-status" class="multiple-replace-status" role="status" aria-live="polite"></p>
+            <div class="dialog-actions"><button id="multiple-replace-delete" type="button" class="secondary-button">删除定义</button><span class="multiple-replace-spacer"></span><button id="multiple-replace-cancel" type="button" class="secondary-button">关闭</button><button id="multiple-replace-save" type="submit" class="secondary-button">保存</button><button id="multiple-replace-highlight" type="button" class="secondary-button">高亮</button><button id="multiple-replace-apply" type="button" class="primary-button">执行全部</button></div>
+          </form>
+        </div>
+      </dialog>
+    </div>
+  </body>
+</html>
