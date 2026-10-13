@@ -239,9 +239,25 @@ test('Electron renderer exposes a labelled tabpanel and maintains keyboard/focus
       { role: 'dialog', name: '编辑器设置' },
       { role: 'checkbox', name: '自动换行' },
       { role: 'checkbox', name: '使用字体连字' },
+      { role: 'button', name: '选择字体…' },
       { role: 'combobox', name: '新文稿默认书写方向' }
     ]);
     assert.equal(await client.evaluate('document.querySelector("#ligatures-setting").checked'), true, 'ligatures preserve the current default rendering');
+    await client.evaluate('document.querySelector("#font-family-open").click(); true');
+    await waitFor(async () => client.evaluate('document.querySelector("#font-picker-dialog").open && document.activeElement.id === "font-family-input"'), 'Show Fonts opens with family search focus');
+    await inspectAccessibleControls(client, 'Show Fonts dialog', [
+      { role: 'dialog', name: '显示字体' },
+      { role: 'combobox', name: '字体系列' },
+      { role: 'button', name: '应用' },
+      { role: 'button', name: '使用字体类型默认值' }
+    ]);
+    await client.evaluate(`(() => { const input = document.querySelector('#font-family-input'); input.value = 'Noto Sans SC'; input.dispatchEvent(new Event('input', {bubbles:true})); return true; })()`);
+    assert.equal(await client.evaluate('document.querySelector("#font-picker-apply").disabled'), false, 'a valid family can be applied');
+    await client.evaluate('document.querySelector("#font-picker-apply").click(); true');
+    const fontApplyState = JSON.parse(await client.evaluate(`JSON.stringify({stored:JSON.parse(localStorage.getItem('cotedit.settings.v1')).fontFamily, editor:getComputedStyle(document.querySelector('#editor .cm-scroller')).fontFamily, root:getComputedStyle(document.documentElement).getPropertyValue('--editor-font-family')})`));
+    assert.equal(fontApplyState.stored, 'Noto Sans SC', `the custom font preference is saved: ${JSON.stringify(fontApplyState)}`);
+    assert.ok(fontApplyState.editor.includes('Noto Sans SC'), `the custom font reaches CodeMirror: ${JSON.stringify(fontApplyState)}`);
+    await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).fontFamily === "Noto Sans SC" && getComputedStyle(document.querySelector("#editor .cm-scroller")).fontFamily.includes("Noto Sans SC")'), 'custom font family persists and applies to the editor');
     await client.evaluate('document.querySelector("#ligatures-setting").click(); true');
     await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).ligatures === false && getComputedStyle(document.querySelector("#editor .cm-content")).fontVariantLigatures === "none"'), 'disabling ligatures persists and applies to CodeMirror content');
     await client.evaluate('document.querySelector("#ligatures-setting").click(); true');
@@ -982,6 +998,8 @@ test('Electron Quick Actions and file drops preserve menu behavior and support b
     const customDropPath = path.join(userData, 'custom-file-drop.txt');
     const customDropContent = 'CUSTOM_DROP_CONTENT_EXPLICITLY_REQUESTED';
     await writeFile(customDropPath, customDropContent, 'utf8');
+    await client.send('Page.bringToFront');
+    await client.evaluate('window.focus(); true');
     await client.send('DOM.setFileInputFiles', { nodeId: fileInputNode.nodeId, files: [customDropPath] });
     await client.evaluate(`(() => {
       const file = document.querySelector('#file-drop-ui-test').files[0];

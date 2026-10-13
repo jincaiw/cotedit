@@ -61,6 +61,14 @@ test('print CSS follows the selected editor font type for plain and numbered tex
   assert.doesNotMatch(invalid, /color:red/);
 });
 
+test('print output uses a validated custom editor family before the selected type fallback', () => {
+  const custom = buildPrintHTML({ text: 'text', pageSetup: { fontType: 'monospaced', fontFamily: 'Noto Sans SC' } });
+  assert.match(custom, /font: 10pt\/1\.45 "Noto Sans SC", "SFMono-Regular", Consolas/);
+  const invalid = buildPrintHTML({ text: 'safe', pageSetup: { fontFamily: 'Arial; color:red' } });
+  assert.match(invalid, /font: 10pt\/1\.45 "SFMono-Regular", Consolas/);
+  assert.doesNotMatch(invalid, /color:red/);
+});
+
 test('print CSS rejects injected page setup values', () => {
   const html = buildPrintHTML({ pageSetup: { printPageSize: 'A4; } body { display:none', printOrientation: 'portrait; color:red' } });
   assert.match(html, /size: A4 portrait/);

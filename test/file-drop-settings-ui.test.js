@@ -15,6 +15,7 @@ test('File Drop settings are discoverable from the editor settings and expose or
   assert.match(html, /role="listbox" aria-label="文件拖放规则"/);
   assert.match(renderer, /function showFileDropRuleManager[\s\S]*?dialog\.showModal\(\)/);
   assert.match(renderer, /function moveFileDropRule\(direction\)[\s\S]*?fileDropDraftRules\[index\], fileDropDraftRules\[nextIndex\]/);
+  assert.match(renderer, /function restoreFileDropRuleManagerFocus\(\)[\s\S]*?restoreDialogFocus\(\$\('#file-drop-settings-dialog'\), target\)/);
   assert.match(renderer, /function saveFileDropRules\(\)[\s\S]*?settings\.fileDropRules = normalized[\s\S]*?persistSettings\(\)/);
   assert.match(renderer, /confirmDiscardFileDropDraft/);
 });

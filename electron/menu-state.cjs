@@ -131,6 +131,7 @@ function getMenuItemStates(payload = {}) {
     'menu-toggle-ligatures': { enabled: true, checked: payload.ligatures !== false },
     'menu-font-type-standard': { enabled: true, checked: payload.fontType === 'standard' },
     'menu-font-type-monospaced': { enabled: true, checked: payload.fontType !== 'standard' },
+    'menu-show-fonts': { enabled: true },
     'menu-toggle-utf8-bom': { enabled: hasDocument && payload.encoding === 'utf8', checked: hasDocument && payload.encoding === 'utf8' && payload.bom === true },
     'menu-toggle-sidebar': { enabled: true, checked: payload.showSidebar !== false },
     'menu-toggle-status-bar': { enabled: true, checked: payload.showStatusBar !== false },

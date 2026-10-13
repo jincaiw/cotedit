@@ -2,6 +2,8 @@
 
 CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 跨平台实现。界面、菜单、快捷键和编辑操作按上游逐项核对；当前稳定基线为 CotEditor 7.1.2，上游 `main` 快照为 2026-10-13 的 `f90e70a644d968e33d48cc6b8258e72a06957f32`。源码级比对仍在推进，本页注明近似行为、缺项、平台实现边界和验证状态。执行顺序见[对齐实施计划](parity-plan.md)。
 
+**CotEdit 1.0.4 字体选择（Format > Font）：**“显示字体…”提供可输入的字体系列名、常见字体建议与预览；名称最长 80 个字符，只接受安全的字母/数字/空格/点/下划线/连字符组合，随设置偏好和设置文件持久化，并作用于主编辑器、分屏编辑器和打印 HTML。浏览器尝试使用请求字体；若目标系统没有该字体，后续标准/等宽字体栈接替。Electron 不提供可靠的已安装字体枚举或 Cocoa `NSFontPanel`，因此建议列表不是系统字体清单；抗锯齿/栅格化没有跨平台等价开关，未伪造该控件。Electron smoke 验证对话框名称、键盘初始焦点、偏好保存和主编辑区计算字体；macOS/Windows 系统字体覆盖、各发行版 Linux 字体回退及原生面板外观仍待实机核验。
+
 **2026-10-13 增量（按语法输入时检查拼写）：**CotEditor 7.1.2 的 Mode 选项包含 `continuousSpellChecking`，general 模式默认开启，code 模式默认关闭；其 Spelling and Grammar 菜单提供“Check Spelling While Typing”。CotEdit 现为每种语法提供“跟随模式默认/开启/关闭”，偏好随设置文件导入/导出持久化，并同步到主编辑器和分屏编辑器的 `spellcheck` 内容属性；Edit > 拼写和语法中的输入时检查开关与当前语法同步。编辑器拼写错误的右键菜单显示系统建议，允许替换单词或添加到系统/应用字典。默认映射按上游模式类别处理：Plain Text、Markdown 与声明为 general 的导入语法开启，code 语法关闭；其它内置 CodeMirror 模式暂以 code 类默认。拼写标记由 Chromium/Electron 的拼写引擎提供；macOS 使用系统语言检测，Windows/Linux 仅选择与操作系统区域设置精确匹配或语言基码匹配的一种 Electron 已安装字典，不主动下载字典；无匹配字典时系统拼写引擎不会提供有效检查。Electron 没有 CotEditor 使用的 Cocoa grammar checking、自动更正控制或原生拼写面板接口，所以这些菜单项显示为禁用；未启用网络语法服务，也不上传文稿。依据：[CotEditor ModeOptions.swift](https://github.com/coteditor/CotEditor/blob/7.1.2/CotEditor/Sources/Models/ModeOptions.swift)、[Mode 设置视图](https://github.com/coteditor/CotEditor/blob/7.1.2/CotEditor/Sources/Settings%20Window/Panes/ModeSettingsView.swift)与[主菜单 storyboard](https://github.com/coteditor/CotEditor/blob/7.1.2/CotEditor/Storyboards/Base.lproj/Main.storyboard)。当前实现覆盖拼写检查开关工作流，未覆盖字典选择/即时检查命令和 Cocoa 拼写面板；系统是否安装对应字典及真实红色标记需在各平台桌面验收。
 
 **2026-10-13 增量（Edit > Speech）：**CotEditor 主菜单的 Speech 子菜单现有 Start Speaking/Stop Speaking，无静态快捷键。CotEdit 增加同层级命令：有选区时朗读主选区，否则朗读全文；运行时按 Web Speech API 是否可用、当前文稿是否有内容及朗读状态更新菜单启用项。操作交由系统/Chromium 当前平台的语音合成实现，不将正文发送给 CotEdit 自有网络服务。平台可用语音、语音面板、朗读队列/声音选择和辅助技术表现尚未实机逐项比对，因此此项只对齐可用工作流，不宣称 AppKit `NSSpeechSynthesizer` 或原生菜单完全一致。
@@ -34,9 +36,10 @@ CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 
 
 ## 功能对应
 
-| 工作流 | CotEdit 0.5.16 | 与 CotEditor 的关系 |
+| 工作流 | CotEdit 1.0.4 | 与 CotEditor 的关系 |
 |---|---|---|
 | 外观与状态栏 | 工作树增加默认关闭的“状态栏使用不透明背景”偏好；关闭时状态栏匹配编辑器主题背景，开启时使用应用面板底色；与既有“显示状态栏”偏好和 View 菜单复选项独立，随本机设置与设置文件导入/导出持久化 | CotEditor 7.1.0 在 Appearance 设置提供 Status bar 选项，7.1.1 默认 `prefersOpaqueBarBackground=false`；CotEdit 以主题纯色匹配模拟背景反映，不实现 macOS 27 原生材质/半透明合成；Node/CSS 静态验证不证明真实桌面绘制或视觉 1:1，见 [7.1.0 发布说明](https://coteditor.com/releasenotes/7.1.0.en)、[外观设置帮助](https://github.com/coteditor/CotEditor/blob/7.1.1/CotEditor/Resources/CotEditor.help/Contents/Resources/en.lproj/pgs/settings_appearance.html) 与 [默认设置源码](https://github.com/coteditor/CotEditor/blob/7.1.1/CotEditor/Sources/Application/Defaults/DefaultSettings.swift) |
+| 字体系列选择 | Format > Font > “显示字体…”对话框接受单一字体族名称，提供常见字体建议和实时预览；名称最长 80 字符并经安全字符校验；设置偏好及设置文件导入/导出保留，主/分屏编辑器和打印 CSS 使用同一字体栈 | 对话框不枚举系统字体、不能检测字体是否已安装；浏览器找不到指定字体时回退到当前标准/等宽栈。它不是 Cocoa `NSFontPanel`；原生字体预览、字符覆盖列表与 Antialias 控制仍不提供，需在目标平台查看回退结果 |
 | 多窗口、最近文稿、打开/保存、草稿恢复、恢复已保存版本、文件路径操作、打印 | 已实现基础版本；最近列表存于本机；桌面版以每窗口独立快照保存未保存文稿（每窗口最多 20 份、全局最多 100 份），旧会话在导入和读回核验后迁移；恢复管理器支持恢复、稍后、删除所选和确认清空；可确认后恢复保存快照、复制路径或在文件管理器中显示；页面设置可选纸张、方向、边距、标题、代码字号和打印行号 | 仍不同于 NSDocument 文稿恢复、文件协调、Cocoa 页面设置/打印面板及其全部排版选项；本机恢复库未加密且不自动过期；纵排打印 HTML/CSS 已有单测，但真实打印排版未验证 |
 | 语法高亮与自动补全 | 72 个内置模式；可导入 `.cotsyntax` 文件夹，支持文件映射、基本注释/字符串分隔符、受限 ICU 正则与字面量高亮、成对/跨行范围、大纲模板、块缩进定界符及 `Completion.json` 补全词；导入有 JSON 大小/符号链接限制并报告未启用规则数 | 不是完整 CotEditor 解析器；按上游提交 `efd522f9fc9362a5211aef528b96a87dcad11335` 扫描 70 个 `.cotsyntax` 包，共 12,550 条高亮、9,709 个补全词；当前工作树有 12,534 条高亮通过编译及逐行执行检查。16 条不启用：8 条被正则/翻译安全边界拒绝，另 8 条虽可编译却每个分支都必需消费 `\R`，因此不可能命中 CodeMirror 的逐行输入。后者为 Markdown `keywords[1,2]`、`strings[2]`、`types[1,2]` 与 reStructuredText `keywords[5]`、`numbers[5]`、`types[1]`；此前统计把这些编译成功但实际无 token 的规则算作活动。其余 8 条拒绝包括 Markdown 的缩进代码块和 FrontMatter，Perl 两条 here-doc，以及 reStructuredText 四条跨行/变宽引用规则。两条官方 Markdown 粗体/斜体规则有实际 CodeMirror 着色测试。另有 4 条大纲规则仍拒绝：Haskell class 因嵌套量词回溯风险；Pascal Type 使用当前不支持的 `\T`，Function/Procedure 在 44 KB 伪声明压力样例上约耗时 251 ms。全量 107 条大纲中 103 条启用。reStructuredText overline 规则仅对精确官方表达式移除紧邻行尾断言的 possessive 标记，真实提取器回归通过；1 MB 匹配/不匹配输入中位耗时分别为 8.07/15.55 ms。89 条缩进定界符已接入。导入提示会报告未启用规则总数；包可导入不等于包内规则都生效。官方说明见 [CotEditor 功能页](https://coteditor.com/) |
 | 查找与正则替换 | 普通文字搜索以 Unicode NFD 校验规范等价、排除仅兼容等价；真正正则按 JavaScript RegExp 加 ICU `\R`、`\h`、`\v`、`\Q…\E`、Unicode `\w`/`\W`、`\d`/`\D`、`\b`/`\B`、绝对锚点及常见 POSIX 类转换；`\R` 覆盖 CRLF、LF、CR、VT、FF、NEL、LS、PS；支持受限前导模式标志、简单原子上的无界 `*+`/`++`，以及简单单原子或单原子非捕获组的可选 `?+`；可变宽原子 `\R?+` 和复合原子保持拒绝；各类行尾命中均映射到正确源行 | 仍是兼容子集，不是 ICU 引擎；`\X`、`\G`、`\T`、扩展模式、属性别名、字符类集合运算、复杂/其他有界 possessive 重复及部分跨行反向引用未完整实现；新增反向引用仅覆盖受限单原子有界捕获，复杂/变宽形式继续拒绝；固定宽度原子组可安全转换，依赖回溯的复合原子组会明确拒绝，避免静默误匹配，见 [ICU 正则说明](https://unicode-org.github.io/icu/userguide/strings/regexp.html) |
@@ -332,7 +335,7 @@ Text > 高级字符计数… 与状态栏入口现可启动计数器；选项支
 
 ### 后续菜单差异清单（静态对照，尚未完成）
 
-对照上游 storyboard，本地菜单仍缺少或未核实的入口包括：拼写/语法与替换服务、语音、从 iPhone/iPad 插入、反斜线/日元符号基于键盘布局的原生快捷键映射、Navigation Bar、代码颜色编辑、片段文件拖放、部分字体/抗锯齿及若干原生 Window 菜单操作。Find > “多重替换…”现已接通；但定义文件拖放导入、独立“高亮全部”和 Unicode 等价匹配仍有功能差异。命名命令片段管理、片段专属快捷键与 Insert Snippet 菜单已在未发行工作源码中实现。CotEdit 已实现 Find > 选择上一个/下一个大纲项及本项目快捷键；此次官方资料审计未能从可读取源码确认 CotEditor 对应动作的确切默认键位，因此不把本地键位称为已核实的上游默认值。Quick Actions、独立 Tab Width/每语法自定义缩进宽度、字体连字 CSS 控制及命令片段也已实现；这些是 Electron/HTML 工作流，不代表 Cocoa 原生菜单或设置面板等价。若依赖 macOS Cocoa、系统服务或专用设备协同，不在跨平台实现中伪造原生等价；其余可移植项继续逐个核对需求、权限和回归边界。该清单是基于上游静态菜单树的初步差异，不代表所有菜单、偏好或平台交互已穷尽。
+当前剩余入口和交互差异集中列于[菜单与快捷键清单](menu-parity.md)：包括 iPhone/iPad Continuity、CotEditor 原生字体与 Console 面板、未具跨平台 API 的系统服务及目标平台菜单/键盘验收。输入时拼写检查、智能替换、Speech、Inspector 总开关、Help 外链和 Show Fonts 近似选择器现已实现；旧版后续菜单清单已由本段替代。此对照仍不是全量逐项证明，完整设置窗格与文稿生命周期项目继续见[对齐实施计划](parity-plan.md)。
 
 ### Format > Font > 连字菜单（2026-10-12）
 

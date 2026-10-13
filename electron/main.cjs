@@ -610,8 +610,9 @@ function buildMenu() {
       { label: '字体', submenu: [
         { label: '字体类型', submenu: [
           { id: 'menu-font-type-standard', label: '标准', type: 'radio', click: () => sendCommand('menu:font-type', 'standard') },
-          { id: 'menu-font-type-monospaced', label: '等宽', type: 'radio', click: () => sendCommand('menu:font-type', 'monospaced') }
+        { id: 'menu-font-type-monospaced', label: '等宽', type: 'radio', click: () => sendCommand('menu:font-type', 'monospaced') }
         ] },
+        { id: 'menu-show-fonts', label: '显示字体…', click: () => sendCommand('menu:show-fonts') },
         { type: 'separator' },
         { id: 'menu-font-up', label: '增大字体', accelerator: accelerator('fontUp'), registerAccelerator: false, click: () => sendCommand('menu:font-up') },
         { id: 'menu-font-down', label: '减小字体', accelerator: accelerator('fontDown'), registerAccelerator: false, click: () => sendCommand('menu:font-down') },

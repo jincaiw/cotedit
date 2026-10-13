@@ -27,6 +27,7 @@ import { documentWordCompletionSource } from '../lib/document-completions.js';
 import { syntaxWordCompletionSource } from '../lib/completion-word-types.js';
 import { urlLinkExtension as createUrlLinkExtension } from '../lib/url-links.js';
 import { readLastWindowSize, rememberLastWindowSize, resolveWindowSize } from '../lib/window-size-preferences.js';
+import { editorFontFamilyStack, normalizeEditorFontFamily } from '../lib/font-family.js';
 import { adjacentOutlineItem, nearestOutlineItemAtOrBefore } from '../lib/outline-navigation.js';
 import { applyShortcutOverrides, findShortcutConflict, formatShortcut, isShortcutCompositionEvent, matchesShortcut, removeDefaultShortcutOverrides, resolveShortcut, shortcutFromEvent } from '../lib/shortcuts.js';
 import { filterQuickActions } from '../lib/quick-actions.js';
@@ -224,6 +225,7 @@ let advancedCountReturnFocus = null;
 let advancedCharacterCountActive = false;
 let speechActive = false;
 let speechRequestId = 0;
+let fontPickerReturnFocus = null;
 let colorCodeTarget = null;
 let pageGuideFrame = 0;
 let lastAppliedWindowSize = null;
@@ -2530,6 +2532,7 @@ function applySettings() {
   $('#theme-toggle').setAttribute('aria-pressed', String(actualTheme === 'dark'));
   $('#theme-toggle').setAttribute('aria-label', `当前为${actualTheme === 'dark' ? '深色' : '浅色'}外观；切换外观`);
   root.style.setProperty('--editor-font-size', `${settings.fontSize}px`);
+  root.style.setProperty('--editor-font-family', editorFontFamilyStack(settings.fontFamily, settings.fontType));
   root.style.setProperty('--editor-line-height', String(settings.lineHeight));
   $('#font-size').textContent = settings.fontSize;
   $('#line-height-setting').value = settings.lineHeight.toFixed(1);
@@ -2757,6 +2760,34 @@ async function applyRemoteEditingSettings(event) {
   } catch (error) {
     $('#remote-editing-status').textContent = `设置未保存：${error.message || '请重试'}`;
   } finally { button.disabled = false; }
+}
+
+function syncFontFamilyPreview() {
+  const input = $('#font-family-input');
+  const family = normalizeEditorFontFamily(input.value);
+  const valid = !input.value.trim() || Boolean(family);
+  $('#font-picker-status').textContent = valid ? '' : '字体名称仅可包含字母、数字、空格、点、下划线和连字符，最多 80 个字符。';
+  $('#font-picker-apply').disabled = !valid;
+  $('#font-family-preview').style.fontFamily = editorFontFamilyStack(family, settings.fontType);
+}
+
+function showFontPicker() {
+  const dialog = $('#font-picker-dialog');
+  fontPickerReturnFocus = document.activeElement;
+  $('#font-family-input').value = settings.fontFamily;
+  syncFontFamilyPreview();
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  requestAnimationFrame(() => $('#font-family-input').focus());
+}
+
+function applyFontFamily() {
+  syncFontFamilyPreview();
+  if ($('#font-picker-apply').disabled) return;
+  settings.fontFamily = normalizeEditorFontFamily($('#font-family-input').value);
+  persistSettings();
+  applySettings();
+  $('#font-picker-dialog').close();
 }
 
 function showPageSetup() {
@@ -3147,8 +3178,7 @@ function restoreFileDropRuleManagerFocus() {
   fileDropDraftDirty = false;
   const target = fileDropManagerReturnFocus;
   fileDropManagerReturnFocus = null;
-  if (target?.isConnected && target !== document.body && !target.closest?.('.hidden, [hidden]')) target.focus();
-  else activeEditor()?.focus();
+  restoreDialogFocus($('#file-drop-settings-dialog'), target);
 }
 
 function addFileDropRule() {
@@ -6626,6 +6656,7 @@ function handleMenu(channel, value) {
     'menu:toggle-wrap': () => { settings.wrap = !settings.wrap; persistSettings(); applySettings(); },
     'menu:toggle-ligatures': () => toggleSetting('ligatures'),
     'menu:font-type': setEditorFontType,
+    'menu:show-fonts': showFontPicker,
     'menu:orientation-horizontal': () => { settings.verticalText = false; persistSettings(); applySettings(); syncMenuState(); },
     'menu:orientation-vertical': () => { settings.verticalText = true; persistSettings(); applySettings(); syncMenuState(); },
     'menu:writing-direction-ltr': () => setDocumentWritingDirection('ltr'),
@@ -7739,6 +7770,16 @@ function registerEvents() {
     persistSettings();
     renderShortcuts($('#shortcuts-query').value);
     $('#shortcut-capture-status').textContent = '所有快捷键已恢复默认。';
+  });
+  $('#font-family-open').addEventListener('click', showFontPicker);
+  $('#font-family-input').addEventListener('input', syncFontFamilyPreview);
+  $('#font-family-reset').addEventListener('click', () => { $('#font-family-input').value = ''; syncFontFamilyPreview(); });
+  $('#font-picker-apply').addEventListener('click', applyFontFamily);
+  $('#font-picker-cancel').addEventListener('click', () => $('#font-picker-dialog').close());
+  $('#font-picker-dialog').addEventListener('close', () => {
+    const target = fontPickerReturnFocus;
+    fontPickerReturnFocus = null;
+    restoreDialogFocus($('#font-picker-dialog'), target);
   });
   $('#page-setup-close').addEventListener('click', () => $('#page-setup-dialog').close());
   $('#page-setup-cancel').addEventListener('click', () => $('#page-setup-dialog').close());

@@ -437,8 +437,12 @@ test('native menus route revert, file path, selection, font and display preferen
   assert.match(main, /ipcMain\.handle\('document:reveal'/);
   assert.match(main, /ipcMain\.handle\('document:copy-path'/);
   const ligatureItem = main.match(/id: 'menu-toggle-ligatures'[^\n]*/)?.[0] || '';
-  assert.match(main, /label: '字体', submenu: \[[\s\S]*?id: 'menu-toggle-ligatures', label: '使用字体连字', type: 'checkbox'/);
+  assert.match(main, /label: '字体', submenu: \[[\s\S]*?id: 'menu-show-fonts', label: '显示字体…'[\s\S]*?id: 'menu-toggle-ligatures', label: '使用字体连字', type: 'checkbox'/);
   assert.doesNotMatch(ligatureItem, /accelerator/);
+  const fontPickerItem = main.match(/id: 'menu-show-fonts'[^\n]*/)?.[0] || '';
+  assert.doesNotMatch(fontPickerItem, /accelerator/);
+  assert.match(preload, /'menu:show-fonts'/);
+  assert.match(renderer, /'menu:show-fonts': showFontPicker/);
   assert.match(renderer, /'menu:toggle-ligatures': \(\) => toggleSetting\('ligatures'\)/);
   assert.match(renderer, /ligatures: Boolean\(settings\.ligatures\)/);
 });

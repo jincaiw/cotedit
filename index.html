@@ -185,6 +185,7 @@
           </div>
         </div>
         <label class="setting-row"><span>字体大小</span><div class="stepper"><button id="font-down" aria-label="减小字号">−</button><span id="font-size">14</span><button id="font-up" aria-label="增大字号">＋</button></div></label>
+        <div class="setting-row"><span>字体系列</span><button id="font-family-open" type="button" class="secondary-button">选择字体…</button></div>
         <label class="setting-row" title="设置编辑器行高为当前字号的倍数。"><span>行高</span><div class="line-height-controls"><input type="number" id="line-height-setting" min="0.1" max="10" step="0.1" value="1.3" aria-label="编辑器行高倍数" /><span aria-hidden="true">×</span></div></label>
         <label class="setting-row"><span>使用字体连字</span><input type="checkbox" id="ligatures-setting" checked /></label>
         <label class="setting-row"><span>当前语法的缩进宽度</span><select id="indent-select"><option value="2">2 个空格</option><option value="4">4 个空格</option><option value="8">8 个空格</option><option value="tab">制表符</option><option value="custom">自定义…</option></select></label>
@@ -312,6 +313,17 @@
           <section><h3>平台差异</h3><p>快捷键帮助按当前平台显示。macOS Cocoa 原生服务、菜单 alternate 项和窗口排序行为不能由 Linux 上的 UI smoke 完全验证；本跨平台实现不承诺与 CotEditor 完全 1:1。</p></section>
           <div class="help-actions"><button id="help-open-shortcuts" class="primary-button">查看键盘快捷键</button></div>
         </div>
+      </dialog>
+      <dialog id="font-picker-dialog" class="font-picker-dialog" aria-labelledby="font-picker-title" aria-describedby="font-picker-description font-picker-status">
+        <header><h2 id="font-picker-title">显示字体</h2><p id="font-picker-description">输入本机已安装的字体系列名称。列表是常见字体建议；不可用字体会回退到“字体类型”设置。</p></header>
+        <label for="font-family-input">字体系列</label>
+        <input id="font-family-input" type="text" maxlength="80" list="font-family-suggestions" autocomplete="off" spellcheck="false" aria-describedby="font-picker-description font-picker-status" />
+        <datalist id="font-family-suggestions">
+          <option value="Menlo"></option><option value="SF Mono"></option><option value="Monaco"></option><option value="Consolas"></option><option value="Cascadia Code"></option><option value="JetBrains Mono"></option><option value="Fira Code"></option><option value="Noto Sans Mono"></option><option value="Courier New"></option><option value="Arial"></option><option value="Segoe UI"></option><option value="Noto Sans SC"></option><option value="Georgia"></option>
+        </datalist>
+        <div id="font-family-preview" class="font-family-preview" aria-label="字体预览">AaBb 0123 中文</div>
+        <p id="font-picker-status" class="dialog-error" role="status" aria-live="polite"></p>
+        <footer><button id="font-family-reset" type="button" class="secondary-button">使用字体类型默认值</button><div><button id="font-picker-cancel" type="button" class="secondary-button">取消</button><button id="font-picker-apply" type="button" class="primary-button">应用</button></div></footer>
       </dialog>
       <dialog id="page-setup-dialog" class="page-setup-dialog" aria-labelledby="page-setup-title" aria-describedby="page-setup-description">
         <form id="page-setup-form">

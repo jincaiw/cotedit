@@ -208,6 +208,15 @@ test('search and tab overflow controls expose expanded state and keyboard naviga
   assert.match(renderer, /requestAnimationFrame\(\(\) => \[\.\.\.\$\('#tabs'\)/);
 });
 
+test('Show Fonts offers an accessible cross-platform family chooser with clear fallback behavior', () => {
+  assert.match(html, /id="font-picker-dialog"[^>]*aria-labelledby="font-picker-title"[^>]*aria-describedby="font-picker-description font-picker-status"/);
+  assert.match(html, /id="font-family-input"[^>]*list="font-family-suggestions"[^>]*aria-describedby="font-picker-description font-picker-status"/);
+  assert.match(html, /id="font-family-preview"[^>]*aria-label="字体预览"/);
+  assert.match(html, /不可用字体会回退到“字体类型”设置/);
+  assert.match(renderer, /function showFontPicker\(\)[\s\S]*?requestAnimationFrame\(\(\) => \$\('#font-family-input'\)\.focus\(\)\)/);
+  assert.match(renderer, /font-picker-dialog'[\s\S]*?restoreDialogFocus\(\$\('#font-picker-dialog'\), target\)/);
+});
+
 test('whole-word search option has an accessible toggle and reaches the shared query builder', () => {
   assert.match(html, /id="match-whole-word"[^>]*aria-label="整词匹配"[^>]*aria-pressed="false"/);
   assert.match(renderer, /wholeWord: searchOptions\.wholeWord/);

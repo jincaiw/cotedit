@@ -160,7 +160,10 @@ test('Format Font Type matches CotEditor Standard/Monospaced actions without inv
   assert.match(main, /fontType: payload\.fontType === 'standard' \? 'standard' : 'monospaced'/);
   assert.match(menuState, /'menu-font-type-standard': \{ enabled: true, checked: payload\.fontType === 'standard' \}/);
   assert.match(menuState, /'menu-font-type-monospaced': \{ enabled: true, checked: payload\.fontType !== 'standard' \}/);
-  assert.match(readFileSync(new URL('../src/style.css', import.meta.url), 'utf8'), /data-font-type='standard'.*\.cm-editor \{ font-family: var\(--editor-font-standard\)/);
+  const editorStyles = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
+  assert.match(editorStyles, /--editor-font-family: var\(--editor-font-monospace\)/);
+  assert.match(editorStyles, /--editor-font-standard:/);
+  assert.match(renderer, /root\.style\.setProperty\('--editor-font-family', editorFontFamilyStack\(settings\.fontFamily, settings\.fontType\)\)/);
   assert.ok(!shortcuts.some(item => item.id === 'fontType'), 'CotEditor declares no default shortcut for Font Type');
 });
 

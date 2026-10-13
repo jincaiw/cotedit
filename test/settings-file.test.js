@@ -44,6 +44,13 @@ test('settings export/import preserves the selected editor font type and rejects
   assert.equal(parseSettingsFile(serializeSettingsFile({ fontType: 'serif' })).fontType, 'monospaced');
 });
 
+test('settings export/import preserves a safe editor font family and rejects injected CSS', () => {
+  assert.deepEqual(parseSettingsFile(serializeSettingsFile({ fontFamily: 'Noto Sans SC' })), {
+    ...DEFAULT_SETTINGS, fontFamily: 'Noto Sans SC'
+  });
+  assert.equal(parseSettingsFile(serializeSettingsFile({ fontFamily: 'Arial; color:red' })).fontFamily, '');
+});
+
 test('settings export/import preserves Use Spaces for Indentation and normalizes invalid values', () => {
   assert.equal(parseSettingsFile(serializeSettingsFile({ autoExpandTab: true })).autoExpandTab, true);
   assert.equal(parseSettingsFile(serializeSettingsFile({ autoExpandTab: false })).autoExpandTab, false);

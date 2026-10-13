@@ -90,6 +90,15 @@ test('substitution Mode overrides validate per-syntax smart quotes, dashes and t
   assert.deepEqual(settings.automaticTextReplacementByLanguage, { plaintext: false, markdown: true });
 });
 
+test('editor font family defaults to automatic fallback and accepts only safe bounded family names', () => {
+  assert.equal(DEFAULT_SETTINGS.fontFamily, '');
+  assert.equal(normalizeSettings({}).fontFamily, '');
+  assert.equal(normalizeSettings({ fontFamily: 'Noto Sans SC' }).fontFamily, 'Noto Sans SC');
+  assert.equal(normalizeSettings({ fontFamily: '思源黑体' }).fontFamily, '思源黑体');
+  assert.equal(normalizeSettings({ fontFamily: 'Arial; color:red' }).fontFamily, '');
+  assert.equal(normalizeSettings({ fontFamily: 'A'.repeat(81) }).fontFamily, '');
+});
+
 test('per-syntax completion word source overrides validate document and syntax flags', () => {
   assert.deepEqual(DEFAULT_SETTINGS.completionWordTypesByLanguage, {});
   const overrides = setCompletionWordTypesOverride({}, 'javascript', { document: false, syntax: true });

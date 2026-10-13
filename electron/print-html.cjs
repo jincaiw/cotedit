@@ -18,6 +18,13 @@ function normalizePrintSettings(value = {}) {
   const pageSize = PAGE_SIZES.has(value.printPageSize) ? value.printPageSize : 'A4';
   const orientation = ORIENTATIONS.has(value.printOrientation) ? value.printOrientation : 'portrait';
   const margin = MARGINS[value.printMargins] || MARGINS.normal;
+  const rawFontFamily = typeof value.fontFamily === 'string' ? value.fontFamily.trim() : '';
+  const customFontFamily = rawFontFamily.length <= 80 && /^[\p{L}\p{N}][\p{L}\p{N} ._-]*$/u.test(rawFontFamily)
+    ? rawFontFamily
+    : '';
+  const fallbackFontFamily = value.fontType === 'standard'
+    ? '"DM Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    : '"SFMono-Regular", Consolas, "Liberation Mono", monospace';
   const rawFontSize = Number.isFinite(value.printFontSize) ? Math.round(value.printFontSize) : 10;
   const rawTabWidth = Number.isFinite(value.tabWidth) ? value.tabWidth : 4;
   return {
@@ -26,9 +33,7 @@ function normalizePrintSettings(value = {}) {
     margin,
     ligatures: value.ligatures !== false,
     fontType: value.fontType === 'standard' ? 'standard' : 'monospaced',
-    fontFamily: value.fontType === 'standard'
-      ? '"DM Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-      : '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
+    fontFamily: customFontFamily ? `"${customFontFamily}", ${fallbackFontFamily}` : fallbackFontFamily,
     printTitle: value.printTitle !== false,
     printLineNumbers: value.printLineNumbers === true,
     verticalText: value.verticalText === true,
