@@ -4,6 +4,11 @@ CotEdit 是一个独立开发的跨平台文本与源代码编辑器，界面、
 
 本版本与 CotEditor 的已知差异（跨平台实现的固有边界）：不提供 macOS 独有的 AppKit 行为（如系统标准词典补全、访达标签写入用原生 API）、应用内购买捐赠、SwiftUI 主题颜色编辑器（重命名/删除用户主题）；CotEditor 的 Apple 帮助书籍以站内说明替代；rmate 远程编辑的“Remote”窗口副标题以窗口标题前缀“远程 · ”与检查器“远程文稿”呈现。详见 [docs/compatibility.md](docs/compatibility.md)。
 
+## 1.0.1（2026-10-13）
+
+- 补充 GitHub Actions 发布流程：打 `v*` 标签后在 macOS、Windows、Linux 原生 runner 构建 DMG/ZIP、NSIS、AppImage/DEB，运行单元测试并将安装包附加到 GitHub Release。
+- 修正项目主页/仓库元数据，并同步应用版本为 1.0.1。
+
 ## 1.0.0（2026-10-12）
 
 首个正式发布版。相对 0.5.16 完成 CotEditor 7.1.2 对齐与跨平台健壮性修复：
