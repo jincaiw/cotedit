@@ -25,16 +25,24 @@ test('Jump to Selection and Join Lines use their distinct CotEditor chords', () 
   assert.equal(resolveShortcut(linuxJoin, shortcuts, 'linux')?.id, 'joinCurrentLines');
 });
 
-test('split editor focus shortcuts match CotEditor Control+grave equivalents without conflicts', () => {
-  const event = shiftKey => ({ key: '`', code: 'Backquote', ctrlKey: true, metaKey: false, altKey: false, shiftKey });
+test('split editor focus shortcuts match CotEditor macOS backquote equivalents and conflict-free platform mappings', () => {
+  const macNext = { key: '`', code: 'Backquote', ctrlKey: false, metaKey: true, altKey: false, shiftKey: false };
+  const macPrevious = { ...macNext, altKey: true };
+  const otherNext = { ...macNext, ctrlKey: true, metaKey: false };
+  const otherPrevious = { ...otherNext, shiftKey: true };
   const next = get('focusNextEditor');
   const previous = get('focusPreviousEditor');
+  assert.equal(next.acceleratorMac, 'Command+`');
+  assert.equal(previous.acceleratorMac, 'Alt+Command+`');
+  assert.equal(resolveShortcut(macNext, shortcuts, 'darwin')?.id, 'focusNextEditor');
+  assert.equal(resolveShortcut(macPrevious, shortcuts, 'darwin')?.id, 'focusPreviousEditor');
+  assert.equal(resolveShortcut(otherNext, shortcuts, 'linux')?.id, 'focusNextEditor');
+  assert.equal(resolveShortcut(otherPrevious, shortcuts, 'linux')?.id, 'focusPreviousEditor');
   for (const platform of ['darwin', 'linux']) {
-    assert.equal(resolveShortcut(event(false), shortcuts, platform)?.id, 'focusNextEditor');
-    assert.equal(resolveShortcut(event(true), shortcuts, platform)?.id, 'focusPreviousEditor');
     assert.equal(findShortcutConflict(next, shortcuts, platform), null);
     assert.equal(findShortcutConflict(previous, shortcuts, platform), null);
   }
+  assert.equal(get('toggleSplit'), undefined, 'Split Editor has no upstream static shortcut');
 });
 
 test('CotEditor Sidebar shortcuts match only Control-Command on macOS and Ctrl-Alt elsewhere', () => {

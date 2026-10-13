@@ -191,6 +191,10 @@
         <label class="setting-row" title="启用后，按 Return/Enter 新建行时沿用上一行缩进；关闭后插入不带缩进的新行。"><span>自动缩进</span><input type="checkbox" id="auto-indent-setting" /></label>
         <label class="setting-row" title="作为未单独设置语法的默认值；关闭后仍可用 Alt+Escape 手动补全。文稿词候选只在手动补全时按需扫描。"><span>全局默认：输入时显示补全建议</span><input type="checkbox" id="suggest-completions-setting" /></label>
         <label class="setting-row" title="仅覆盖活动文稿的语法；选择“跟随全局默认”会移除此语法的单独设置。"><span>当前语法自动补全</span><select id="suggest-completions-language-setting" aria-label="当前语法自动补全策略"><option value="global">跟随全局默认</option><option value="on">开启</option><option value="off">关闭</option></select></label>
+        <label class="setting-row" title="按 CotEditor 的 Mode 默认值控制拼写标记；平台字典由 Chromium/Electron 和操作系统提供。"><span>当前语法输入时检查拼写</span><select id="spell-check-language-setting" aria-label="当前语法输入时检查拼写"><option value="mode-default">跟随模式默认</option><option value="on">开启</option><option value="off">关闭</option></select></label>
+        <label class="setting-row" title="仅覆盖当前语法；智能引号把直引号替换为弯引号。"><span>当前语法智能引号</span><select id="smart-quotes-language-setting" aria-label="当前语法智能引号"><option value="mode-default">跟随模式默认（关闭）</option><option value="on">开启</option><option value="off">关闭</option></select></label>
+        <label class="setting-row" title="仅覆盖当前语法；连续输入两个连字符时替换为长破折号。"><span>当前语法智能破折号</span><select id="smart-dashes-language-setting" aria-label="当前语法智能破折号"><option value="mode-default">跟随模式默认（关闭）</option><option value="on">开启</option><option value="off">关闭</option></select></label>
+        <label class="setting-row" title="按语法控制已勾选自动应用的自定义替换词；CotEditor 模式默认开启。"><span>当前语法自动文本替换</span><select id="automatic-text-replacement-language-setting" aria-label="当前语法自动文本替换"><option value="mode-default">跟随模式默认（开启）</option><option value="on">开启</option><option value="off">关闭</option></select></label>
         <label class="setting-row" title="跟随模式默认：代码语法开启、纯文本关闭；也可单独覆盖当前语法。"><span>自动插入匹配括号与引号</span><select id="symbol-balancing-language-setting" aria-label="当前语法自动插入匹配括号与引号"><option value="mode-default">跟随模式默认</option><option value="on">开启</option><option value="off">关闭</option></select></label>
         <fieldset class="completion-source-settings" aria-describedby="completion-source-note">
           <legend>当前语法的补全列表包含</legend>
@@ -249,7 +253,7 @@
         <div class="setting-tools"><span>管理格式菜单中的语法选项</span><button id="syntax-menu-settings" type="button">自定义语法菜单…</button></div>
         <div class="setting-tools"><span>查看语法自动识别的重复映射</span><button id="syntax-mapping-conflicts-settings" type="button" disabled>查看映射冲突…</button></div>
         <div class="setting-tools"><span>创建、排序并管理可插入的文本片段</span><button id="snippet-manager-open" type="button">管理片段…</button></div>
-        <div class="setting-tools"><span>管理仅在选区中手动应用的替换词</span><button id="text-replacements-open" type="button">文本替换词…</button></div>
+        <div class="setting-tools"><span>管理手动替换词及输入时自动应用规则</span><button id="text-replacements-open" type="button">文本替换词…</button></div>
         <div class="setting-tools"><span>设置拖入文件时插入的文本规则</span><button id="file-drop-settings-open" type="button">文件拖放…</button></div>
         <div class="setting-tools"><span id="remote-editing-summary">SSH rmate 远程编辑（默认关闭）</span><button id="remote-editing-open" type="button">外部集成…</button></div>
         <div class="settings-footnote">设置仅保存在此设备</div>
@@ -497,7 +501,7 @@
         </div>
       </dialog>
       <dialog id="text-replacement-manager-dialog" class="text-replacement-manager-dialog resizable-settings-dialog" aria-labelledby="text-replacement-manager-title" aria-describedby="text-replacement-manager-description">
-        <div class="shortcuts-head"><div><h2 id="text-replacement-manager-title">文本替换词</h2><p id="text-replacement-manager-description">“替换文本”只处理所选文字；不自动改写输入，也不读取或同步 macOS 系统替换词。</p></div><button id="text-replacement-manager-close" class="panel-close" type="button" aria-label="关闭文本替换词管理器">×</button></div>
+        <div class="shortcuts-head"><div><h2 id="text-replacement-manager-title">文本替换词</h2><p id="text-replacement-manager-description">“替换文本”可手动处理选区；勾选“输入时自动应用”的规则会在当前语法启用自动文本替换时，于输入分隔符后替换触发词。不读取或同步 macOS 系统替换词。</p></div><button id="text-replacement-manager-close" class="panel-close" type="button" aria-label="关闭文本替换词管理器">×</button></div>
         <div class="snippet-manager-shell">
           <section class="snippet-manager-list-pane" aria-label="文本替换词列表">
             <div class="snippet-manager-list-tools"><button id="text-replacement-new" type="button" class="primary-button">新建</button></div>
@@ -509,6 +513,7 @@
             <label for="text-replacement-value">替换为</label>
             <textarea id="text-replacement-value" name="replacement" rows="6" maxlength="4096" spellcheck="false"></textarea>
             <label class="count-option-check"><input id="text-replacement-enabled" type="checkbox" checked><span>启用此规则</span></label>
+            <label class="count-option-check"><input id="text-replacement-automatic" type="checkbox"><span>输入时自动应用</span></label>
             <p id="text-replacement-manager-error" class="dialog-error" role="status" aria-live="polite"></p>
             <div class="dialog-actions"><button id="text-replacement-delete" type="button" class="secondary-button" disabled>删除</button><span class="snippet-manager-spacer"></span><button id="text-replacement-cancel" type="button" class="secondary-button">关闭</button><button id="text-replacement-save" type="submit" class="primary-button">保存</button></div>
           </form>

@@ -79,6 +79,17 @@ test('automatic symbol balancing overrides accept only bounded syntax ids and bo
   assert.equal(setAutomaticSymbolBalancingOverride({}, '../bad', true).javascript, undefined);
 });
 
+test('substitution Mode overrides validate per-syntax smart quotes, dashes and text replacement flags', () => {
+  const settings = normalizeSettings({
+    smartQuotesByLanguage: { plaintext: true, javascript: false, invalid: 'on' },
+    smartDashesByLanguage: { markdown: true, 'bad key': true },
+    automaticTextReplacementByLanguage: { plaintext: false, markdown: true }
+  });
+  assert.deepEqual(settings.smartQuotesByLanguage, { plaintext: true, javascript: false });
+  assert.deepEqual(settings.smartDashesByLanguage, { markdown: true });
+  assert.deepEqual(settings.automaticTextReplacementByLanguage, { plaintext: false, markdown: true });
+});
+
 test('per-syntax completion word source overrides validate document and syntax flags', () => {
   assert.deepEqual(DEFAULT_SETTINGS.completionWordTypesByLanguage, {});
   const overrides = setCompletionWordTypesOverride({}, 'javascript', { document: false, syntax: true });

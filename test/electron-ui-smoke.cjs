@@ -338,10 +338,11 @@ test('Electron renderer exposes a labelled tabpanel and maintains keyboard/focus
     const stackedSplitGeometry = JSON.parse(await client.evaluate(`JSON.stringify((() => { const primary = document.querySelector('#editor').getBoundingClientRect(); const secondary = document.querySelector('#editor-secondary').getBoundingClientRect(); return {primary:{top:primary.top,left:primary.left,width:primary.width,height:primary.height},secondary:{top:secondary.top,left:secondary.left,width:secondary.width,height:secondary.height}}; })())`));
     assert.ok(stackedSplitGeometry.secondary.top >= stackedSplitGeometry.primary.top + stackedSplitGeometry.primary.height - 1, 'vertical split places the secondary editor below the primary editor');
     assert.ok(stackedSplitGeometry.secondary.width > stackedSplitGeometry.secondary.height, 'stacked editor panes use the available horizontal width');
-    await client.key('`', 'Backquote', 192, 2);
-    await waitFor(async () => client.evaluate('document.activeElement.closest("#editor") !== null'), 'Control+grave focuses the next editor pane');
-    await client.key('`', 'Backquote', 192, 10);
-    await waitFor(async () => client.evaluate('document.activeElement.closest("#editor-secondary") !== null'), 'Shift+Control+grave focuses the previous editor pane');
+    const nextEditorModifier = await client.evaluate(`(() => { const platform = window.cotedit?.platform || navigator.platform; return platform === 'darwin' || /Mac/i.test(String(platform)) ? 4 : 2; })()`);
+    await client.key('`', 'Backquote', 192, nextEditorModifier);
+    await waitFor(async () => client.evaluate('document.activeElement.closest("#editor") !== null'), 'Command/Ctrl+Backquote focuses the next editor pane');
+    await client.key('`', 'Backquote', 192, nextEditorModifier + (nextEditorModifier === 4 ? 1 : 8));
+    await waitFor(async () => client.evaluate('document.activeElement.closest("#editor-secondary") !== null'), 'Option+Command/Shift+Ctrl+Backquote focuses the previous editor pane');
     await client.evaluate('document.querySelector("#split-toggle").click(); true');
     await waitFor(async () => client.evaluate('document.querySelector("#split-editor").classList.contains("hidden") && document.activeElement.closest("#editor") !== null'), 'split focus test restores the single-editor state');
     const initialPanel = await client.evaluate(`JSON.stringify({role:document.querySelector('#editor').getAttribute('role'),labelledby:document.querySelector('#editor').getAttribute('aria-labelledby'),tabId:document.querySelector('#tabs [role=tab][aria-selected="true"]')?.id,selected:document.querySelector('#tabs [role=tab][aria-selected="true"]')?.getAttribute('aria-selected')})`);
@@ -675,6 +676,7 @@ test('Electron renderer exposes a labelled tabpanel and maintains keyboard/focus
     await waitFor(async () => client.evaluate('document.querySelectorAll("#tabs [role=tab]").length >= 6 && !document.querySelector("#tab-overflow").classList.contains("hidden")'), 'overflow tabs');
     await client.evaluate('document.querySelector("#tab-overflow").click(); true');
     await waitFor(async () => client.evaluate('document.querySelector("#tab-overflow").getAttribute("aria-expanded") === "true" && document.querySelectorAll("#tab-overflow-menu [role=menuitemradio]").length === document.querySelectorAll("#tabs [role=tab]").length'), 'overflow menu open');
+    await waitFor(async () => client.evaluate('document.activeElement.matches("#tab-overflow-menu [role=menuitemradio]")'), 'overflow menu initially focuses a document');
     await client.key('Home', 'Home', 36);
     await waitFor(async () => client.evaluate('document.activeElement === document.querySelector("#tab-overflow-menu [role=menuitemradio]:first-child")'), 'overflow Home navigation');
     await client.key('End', 'End', 35);
@@ -942,7 +944,7 @@ test('Electron Quick Actions and file drops preserve menu behavior and support b
     await waitFor(async () => client.evaluate('document.querySelector("#settings-popover").getAttribute("aria-hidden") === "false"'), 'open editor settings for File Drop rules');
     await client.evaluate(`(() => { window.__fileDropUiErrors = []; window.addEventListener('error', event => window.__fileDropUiErrors.push(event.message)); return true; })()`);
     await client.evaluate('document.querySelector("#file-drop-settings-open").scrollIntoView({block:"center"}); true');
-    await client.click('#file-drop-settings-open');
+    await client.evaluate('document.querySelector("#file-drop-settings-open").click(); true');
     await waitFor(async () => client.evaluate('document.querySelector("#file-drop-settings-dialog").open'), 'open the File Drop settings dialog');
     await inspectAccessibleControls(client, 'File Drop settings dialog', [
       { role: 'dialog', name: '文件拖放' },
@@ -992,6 +994,7 @@ test('Electron Quick Actions and file drops preserve menu behavior and support b
     })()`);
     await waitFor(async () => client.evaluate('document.querySelector("#editor .cm-content").textContent.includes("custom: custom-file-drop.txt|")'), 'custom File Drop template formats a live Electron drop');
     assert.equal(await client.evaluate(`document.querySelector('#editor .cm-content').textContent.includes(${JSON.stringify(customDropContent)})`), true, 'FILECONTENT reads and inserts the body only when the matching rule explicitly requests it');
+    await waitFor(async () => client.evaluate('document.activeElement.closest("#editor") !== null'), 'file drop focuses the target editor before editing continues');
     await client.key('z', 'KeyZ', 90, fileDropUndoModifier);
     await waitFor(async () => client.evaluate('!document.querySelector("#editor .cm-content").textContent.includes("custom: custom-file-drop.txt")'), 'custom File Drop insertion remains one undoable transaction');
 
@@ -1096,7 +1099,10 @@ test('Electron Quick Actions and file drops preserve menu behavior and support b
       document.querySelector('#multiple-replace-add-rule').click();
       set('.multiple-replace-rule:nth-child(2) input[data-multiple-replace-field="findString"]', 'new');
       set('.multiple-replace-rule:nth-child(2) input[data-multiple-replace-field="replacementString"]', 'done');
-      for (const id of ['multiple-replace-textual-case-insensitive', 'multiple-replace-textual-literal', 'multiple-replace-regex-case-insensitive', 'multiple-replace-regex-allow-comments-and-whitespace', 'multiple-replace-regex-ignore-metacharacters', 'multiple-replace-regex-dot-matches-line-separators', 'multiple-replace-regex-anchors-match-lines', 'multiple-replace-regex-unix-line-separators', 'multiple-replace-matches-full-word', 'multiple-replace-unescapes-replacement']) document.querySelector('#' + id).click();
+      for (const id of ['multiple-replace-textual-case-insensitive', 'multiple-replace-textual-literal', 'multiple-replace-regex-case-insensitive', 'multiple-replace-regex-allow-comments-and-whitespace', 'multiple-replace-regex-ignore-metacharacters', 'multiple-replace-regex-dot-matches-line-separators', 'multiple-replace-regex-anchors-match-lines', 'multiple-replace-regex-unix-line-separators', 'multiple-replace-matches-full-word', 'multiple-replace-unescapes-replacement']) {
+        const option = document.querySelector('#' + id);
+        if (!option.checked) option.click();
+      }
       const anchored = document.querySelector('#multiple-replace-textual-anchored');
       anchored.click();
       const anchoredCanBeEnabled = anchored.checked;
@@ -1185,7 +1191,7 @@ test('Electron manages syntax-scoped command snippets and inserts selection/curs
     await client.click('#settings-toggle');
     await waitFor(async () => client.evaluate('document.querySelector("#settings-popover").getAttribute("aria-hidden") === "false"'), 'settings popover opens');
     await client.evaluate('document.querySelector("#snippet-manager-open").scrollIntoView({ block: "center" }); true');
-    await client.click('#snippet-manager-open');
+    await client.evaluate('document.querySelector("#snippet-manager-open").click(); true');
     await waitFor(async () => client.evaluate('document.querySelector("#snippet-manager-dialog").open'), 'snippet manager opens from settings');
     await inspectAccessibleControls(client, 'snippet manager', [
       { role: 'dialog', name: '片段' },

@@ -1,5 +1,6 @@
 import { minimalSetup, EditorView } from 'codemirror';
 import { Decoration, lineNumbers, keymap, highlightActiveLineGutter, highlightActiveLine, rectangularSelection, crosshairCursor, ViewPlugin, WidgetType } from '@codemirror/view';
+import { automaticSubstitutionsExtension } from '../lib/automatic-substitutions.js';
 import { EditorState, EditorSelection, StateEffect, StateField, Compartment } from '@codemirror/state';
 import { StreamLanguage, indentUnit, foldGutter, indentOnInput, bracketMatching, HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -118,7 +119,7 @@ import { verticalTextAdjacentPosition } from '../lib/vertical-navigation.js';
 import { selectEnclosingPairAtDoubleClick } from '../lib/double-click-selection.js';
 import { formatExternalApplicationLabel } from '../lib/external-application-label.js';
 import { Prec } from '@codemirror/state';
-import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeLineHeight, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
+import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, continuousSpellCheckingEnabledForLanguage, setContinuousSpellCheckingOverride, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeLineHeight, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
 import { defaultSyntaxFileExtension, normalizeDefaultSyntaxId, resolveDefaultSyntaxId } from '../lib/default-syntax.js';
 import { deleteSoftTab, insertSoftTab } from '../lib/soft-tabs.js';
 import { handleSelectedLinesTab } from '../lib/tab-selection-indent.js';
@@ -143,6 +144,8 @@ const selectionMatchCompartment = new Compartment();
 const indentCompartment = new Compartment();
 const autoIndentCompartment = new Compartment();
 const symbolBalancingCompartment = new Compartment();
+const spellCheckingCompartment = new Compartment();
+const automaticSubstitutionsCompartment = new Compartment();
 const completionCompartment = new Compartment();
 const urlLinkCompartment = new Compartment();
 const customThemeCompartment = new Compartment();
@@ -219,6 +222,8 @@ let advancedCountTimer = null;
 let advancedCountRequestId = 0;
 let advancedCountReturnFocus = null;
 let advancedCharacterCountActive = false;
+let speechActive = false;
+let speechRequestId = 0;
 let colorCodeTarget = null;
 let pageGuideFrame = 0;
 let lastAppliedWindowSize = null;
@@ -1171,6 +1176,52 @@ function symbolBalancingExtension(doc = activeDoc) {
     : [];
 }
 
+function spellCheckingModeDefault(language) {
+  const syntax = customSyntaxes.find(item => item.id === language);
+  if (syntax) return syntax.kind === 'general';
+  return ['plaintext', 'markdown'].includes(language);
+}
+
+function spellCheckingEnabled(language = activeDoc?.language) {
+  return continuousSpellCheckingEnabledForLanguage(settings, language, spellCheckingModeDefault(language));
+}
+
+function spellCheckingExtension(doc = activeDoc) {
+  return EditorView.contentAttributes.of({ spellcheck: spellCheckingEnabled(doc?.language) ? 'true' : 'false' });
+}
+
+const SUBSTITUTION_MODE_OPTIONS = Object.freeze({
+  smartQuotes: { setting: 'smartQuotesByLanguage', modeDefault: false, controlId: 'smart-quotes-language-setting' },
+  smartDashes: { setting: 'smartDashesByLanguage', modeDefault: false, controlId: 'smart-dashes-language-setting' },
+  textReplacement: { setting: 'automaticTextReplacementByLanguage', modeDefault: true, controlId: 'automatic-text-replacement-language-setting' }
+});
+
+function substitutionModeEnabled(option, language = activeDoc?.language) {
+  const descriptor = SUBSTITUTION_MODE_OPTIONS[option];
+  if (!descriptor) return false;
+  const overrides = settings[descriptor.setting];
+  return language && typeof overrides?.[language] === 'boolean' ? overrides[language] : descriptor.modeDefault;
+}
+
+function setSubstitutionModeOverride(option, language, value) {
+  const descriptor = SUBSTITUTION_MODE_OPTIONS[option];
+  if (!descriptor || typeof language !== 'string' || !/^[a-z0-9_-]{1,80}$/i.test(language)) return;
+  const overrides = { ...settings[descriptor.setting] };
+  if (typeof value === 'boolean') overrides[language] = value;
+  else delete overrides[language];
+  settings[descriptor.setting] = Object.fromEntries(Object.entries(overrides).slice(-200));
+}
+
+function automaticSubstitutionEditorExtension(doc = activeDoc) {
+  const language = doc?.language;
+  return automaticSubstitutionsExtension(() => ({
+    smartQuotes: substitutionModeEnabled('smartQuotes', language),
+    smartDashes: substitutionModeEnabled('smartDashes', language),
+    textReplacement: substitutionModeEnabled('textReplacement', language),
+    rules: settings.textReplacements
+  }));
+}
+
 function urlLinksExtension() {
   if (!settings.autoLinkDetection) return [];
   return createUrlLinkExtension(url => {
@@ -1200,6 +1251,8 @@ function createState(doc) {
   const indent = indentCompartment.of(indentExtensions(doc));
   const autoIndent = autoIndentCompartment.of(autoIndentExtension());
   const symbolBalancing = symbolBalancingCompartment.of(symbolBalancingExtension(doc));
+  const spellChecking = spellCheckingCompartment.of(spellCheckingExtension(doc));
+  const automaticSubstitutions = automaticSubstitutionsCompartment.of(automaticSubstitutionEditorExtension(doc));
   const completions = completionCompartment.of(completionExtension(doc));
   const urlLinks = urlLinkCompartment.of(urlLinksExtension());
   const customTheme = customThemeCompartment.of(customThemeExtension());
@@ -1223,6 +1276,8 @@ function createState(doc) {
       indentOnInput(),
       matchingBraces,
       symbolBalancing,
+      spellChecking,
+      automaticSubstitutions,
       completions,
       urlLinks,
       currentLine,
@@ -1419,6 +1474,8 @@ function switchDocument(doc) {
       languageCompartment.reconfigure(languageExtension(activeDoc.language, activeDoc.name)),
       bracketMatchingCompartment.reconfigure(matchingBracesExtension()),
       symbolBalancingCompartment.reconfigure(symbolBalancingExtension(activeDoc)),
+      spellCheckingCompartment.reconfigure(spellCheckingExtension(activeDoc)),
+      automaticSubstitutionsCompartment.reconfigure(automaticSubstitutionEditorExtension(activeDoc)),
       completionCompartment.reconfigure(completionExtension(activeDoc)),
       lineNumberCompartment.reconfigure(numberExtension()),
       wrapCompartment.reconfigure(lineWrappingExtension()),
@@ -2136,6 +2193,14 @@ function syncMenuState() {
     toggleCommentUncommentable,
     canInspectCharacter,
     advancedCountActive: advancedCharacterCountActive,
+    continuousSpellChecking: spellCheckingEnabled(),
+    smartQuotes: substitutionModeEnabled('smartQuotes'),
+    smartDashes: substitutionModeEnabled('smartDashes'),
+    automaticTextReplacement: substitutionModeEnabled('textReplacement'),
+    speechAvailable: typeof window.speechSynthesis?.speak === 'function' && typeof window.SpeechSynthesisUtterance === 'function',
+    hasSpeechText: Boolean(view?.state.doc.length),
+    speechActive,
+    inspectorVisible: inspectorPanelIsVisible(),
     hasAnySelection: Boolean(view?.state.selection.ranges.some(range => !range.empty)),
     hasTextReplacements: settings.textReplacements.some(rule => rule.enabled),
     hasRichTextSelection: Boolean(view?.state.selection.ranges.some(range => !range.empty)),
@@ -2207,6 +2272,49 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove('visible'), 2600);
 }
 
+function startSpeechSynthesis() {
+  const view = activeEditor();
+  const synth = window.speechSynthesis;
+  if (!view || !synth || typeof window.SpeechSynthesisUtterance !== 'function') return;
+  const selection = view.state.selection.main;
+  const text = selection.empty ? view.state.doc.toString() : view.state.doc.sliceString(selection.from, selection.to);
+  if (!text.trim()) { showToast('没有可朗读的文本。'); return; }
+  const requestId = ++speechRequestId;
+  synth.cancel();
+  const utterance = new window.SpeechSynthesisUtterance(text);
+  utterance.lang = navigator.language;
+  const finish = () => {
+    if (speechRequestId !== requestId) return;
+    speechActive = false;
+    syncMenuState();
+  };
+  utterance.onstart = () => { if (speechRequestId === requestId) { speechActive = true; syncMenuState(); } };
+  utterance.onend = finish;
+  utterance.onerror = event => {
+    finish();
+    if (event.error !== 'canceled' && event.error !== 'interrupted') showToast('系统朗读服务不可用。');
+  };
+  speechActive = true;
+  syncMenuState();
+  try { synth.speak(utterance); }
+  catch { finish(); showToast('系统朗读服务不可用。'); }
+}
+
+function stopSpeechSynthesis() {
+  speechRequestId++;
+  window.speechSynthesis?.cancel();
+  speechActive = false;
+  syncMenuState();
+}
+
+function toggleSubstitutionMode(option) {
+  const language = activeDoc?.language;
+  if (!language || !SUBSTITUTION_MODE_OPTIONS[option]) return;
+  setSubstitutionModeOverride(option, language, !substitutionModeEnabled(option, language));
+  persistSettings();
+  applySettings();
+}
+
 function changeFontSize(delta) {
   settings.fontSize = Math.max(10, Math.min(28, settings.fontSize + delta));
   persistSettings();
@@ -2265,6 +2373,30 @@ function syncSymbolBalancingControls() {
     ? (overrides[language] ? 'on' : 'off')
     : 'mode-default';
   control.disabled = !language;
+}
+
+function syncSpellCheckingControls() {
+  const control = $('#spell-check-language-setting');
+  if (!control) return;
+  const language = activeDoc?.language;
+  const overrides = settings.continuousSpellCheckingByLanguage;
+  control.value = language && Object.hasOwn(overrides, language)
+    ? (overrides[language] ? 'on' : 'off')
+    : 'mode-default';
+  control.disabled = !language;
+}
+
+function syncSubstitutionControls() {
+  for (const [option, descriptor] of Object.entries(SUBSTITUTION_MODE_OPTIONS)) {
+    const control = $(`#${descriptor.controlId}`);
+    if (!control) continue;
+    const overrides = settings[descriptor.setting];
+    const language = activeDoc?.language;
+    control.value = language && Object.hasOwn(overrides, language)
+      ? (overrides[language] ? 'on' : 'off')
+      : 'mode-default';
+    control.disabled = !language;
+  }
 }
 
 function syncCompletionWordTypeControls() {
@@ -2421,6 +2553,8 @@ function applySettings() {
   $('#suggest-completions-setting').checked = settings.suggestCompletionsWhileTyping;
   syncAutoCompletionControls();
   syncSymbolBalancingControls();
+  syncSpellCheckingControls();
+  syncSubstitutionControls();
   $('#detect-indent-style-setting').checked = settings.detectsIndentStyle;
   $('#indent-with-tab-setting').checked = settings.indentWithTabKey;
   $('#comment-spacer-setting').checked = settings.appendsCommentSpacer;
@@ -2480,6 +2614,8 @@ function applySettings() {
       selectionMatchCompartment.reconfigure(selectionMatchExtension()),
       autoIndentCompartment.reconfigure(autoIndentExtension()),
       symbolBalancingCompartment.reconfigure(symbolBalancingExtension(activeDoc)),
+      spellCheckingCompartment.reconfigure(spellCheckingExtension(activeDoc)),
+      automaticSubstitutionsCompartment.reconfigure(automaticSubstitutionEditorExtension(activeDoc)),
       completionCompartment.reconfigure(completionExtension(activeDoc)),
       urlLinkCompartment.reconfigure(urlLinksExtension()),
       indentCompartment.reconfigure(indentExtensions(activeDoc)),
@@ -3410,7 +3546,7 @@ function renderTextReplacementList() {
     const trigger = document.createElement('strong');
     trigger.textContent = rule.trigger;
     const detail = document.createElement('small');
-    detail.textContent = `${rule.enabled ? '启用' : '已停用'} · 替换为：${rule.replacement || '（空字符串）'}`;
+    detail.textContent = `${rule.enabled ? '启用' : '已停用'} · ${rule.automatic ? '输入时自动应用' : '手动应用'} · 替换为：${rule.replacement || '（空字符串）'}`;
     button.append(trigger, detail);
     button.addEventListener('click', () => selectTextReplacementForEdit(rule.id));
     list.append(button);
@@ -3422,6 +3558,7 @@ function setTextReplacementForm(rule = null) {
   $('#text-replacement-trigger').value = rule?.trigger ?? '';
   $('#text-replacement-value').value = rule?.replacement ?? '';
   $('#text-replacement-enabled').checked = rule?.enabled !== false;
+  $('#text-replacement-automatic').checked = rule?.automatic === true;
   $('#text-replacement-manager-error').textContent = '';
   textReplacementFormDirty = false;
 }
@@ -3483,7 +3620,7 @@ function saveTextReplacementManager(event) {
   const id = textReplacementDraftIsNew
     ? (globalThis.crypto?.randomUUID?.() || `text-replacement-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`)
     : selectedTextReplacementId;
-  const draft = { id, trigger, replacement, enabled: $('#text-replacement-enabled').checked };
+  const draft = { id, trigger, replacement, enabled: $('#text-replacement-enabled').checked, automatic: $('#text-replacement-automatic').checked };
   const next = settings.textReplacements.slice();
   const index = next.findIndex(rule => rule.id === id);
   if (index >= 0) next[index] = draft;
@@ -4130,6 +4267,8 @@ function changeLanguage(id) {
   editorView.dispatch({ effects: [
     languageCompartment.reconfigure(languageExtension(id, activeDoc.name)),
     symbolBalancingCompartment.reconfigure(symbolBalancingExtension(activeDoc)),
+    spellCheckingCompartment.reconfigure(spellCheckingExtension(activeDoc)),
+    automaticSubstitutionsCompartment.reconfigure(automaticSubstitutionEditorExtension(activeDoc)),
     completionCompartment.reconfigure(completionExtension(activeDoc)),
     indentCompartment.reconfigure(indentExtensions(activeDoc))
   ] });
@@ -4351,6 +4490,8 @@ async function saveDocument(saveAs = false) {
       editorView.dispatch({ effects: [
         languageCompartment.reconfigure(languageExtension(nextLanguage, activeDoc.name)),
         symbolBalancingCompartment.reconfigure(symbolBalancingExtension(activeDoc)),
+        spellCheckingCompartment.reconfigure(spellCheckingExtension(activeDoc)),
+        automaticSubstitutionsCompartment.reconfigure(automaticSubstitutionEditorExtension(activeDoc)),
         completionCompartment.reconfigure(completionExtension(activeDoc)),
         indentCompartment.reconfigure(indentExtensions(activeDoc))
       ] });
@@ -4749,11 +4890,13 @@ function closePanel(id, restoreFocus = false) {
   const triggerId = PANEL_TRIGGER_IDS[id];
   if (!triggerId) {
     if (restoreFocus && id === 'document-inspector-panel') activeEditor()?.focus();
+    syncMenuState();
     return;
   }
   const trigger = $(`#${triggerId}`);
   trigger.setAttribute('aria-expanded', 'false');
   if (restoreFocus) selectionPopover ? activeEditor()?.focus() : trigger.focus();
+  syncMenuState();
 }
 
 function togglePanel(id) {
@@ -4767,6 +4910,7 @@ function togglePanel(id) {
   if (id === 'character-panel' && opening) updateCharacterDetails();
   if (id === 'outline-panel' && opening) renderOutline();
   if (id === 'warnings-panel' && opening) updateEncodingWarnings();
+  syncMenuState();
 }
 
 function toggleSplit() {
@@ -4970,6 +5114,18 @@ function toggleDocumentInspector() {
   });
   refreshDocumentInspector();
   panel.classList.remove('hidden');
+  syncMenuState();
+}
+
+function inspectorPanelIsVisible() {
+  return Object.keys(PANEL_TRIGGER_IDS).some(id => !$(`#${id}`).classList.contains('hidden'));
+}
+
+function toggleInspectorGroup() {
+  const visiblePanel = Object.keys(PANEL_TRIGGER_IDS).find(id => !$(`#${id}`).classList.contains('hidden'));
+  if (visiblePanel) closePanel(visiblePanel, true);
+  else toggleDocumentInspector();
+  syncMenuState();
 }
 
 function showGoToLineDialog() {
@@ -6401,6 +6557,7 @@ function handleMenu(channel, value) {
     'menu:search-folder': openFolderSearch,
     'menu:folder-browser': openFolderNavigation, 'menu:folder-find': openFolderSearch,
     'menu:document-inspector': toggleDocumentInspector,
+    'menu:toggle-inspector': toggleInspectorGroup,
     'menu:find-next': () => applySearch(true), 'menu:find-previous': () => applySearch(true, true),
     'menu:go-to-line': showGoToLineDialog, 'menu:select-line': selectCurrentLine, 'menu:select-word': selectCurrentWord, 'menu:select-enclosing-symbols': selectEnclosingSymbols,
     'menu:undo': () => undo(activeEditor()), 'menu:redo': () => redo(activeEditor()),
@@ -6452,6 +6609,20 @@ function handleMenu(channel, value) {
     'menu:uncomment': () => uncommentSelectionCommand(activeEditor(), settings.appendsCommentSpacer),
     'menu:trim-trailing-whitespace': trimTrailingWhitespace,
     'menu:reset-syntax': () => activeDoc && changeLanguage(languageForDocument(activeDoc.name, activeDoc.text)),
+    'menu:speech-start': startSpeechSynthesis,
+    'menu:speech-stop': stopSpeechSynthesis,
+    'menu:toggle-smart-quotes': () => toggleSubstitutionMode('smartQuotes'),
+    'menu:toggle-smart-dashes': () => toggleSubstitutionMode('smartDashes'),
+    'menu:toggle-text-replacement': () => toggleSubstitutionMode('textReplacement'),
+    'menu:toggle-spelling': () => {
+      const language = activeDoc?.language;
+      if (!language) return;
+      settings.continuousSpellCheckingByLanguage = setContinuousSpellCheckingOverride(
+        settings.continuousSpellCheckingByLanguage, language, !spellCheckingEnabled(language)
+      );
+      persistSettings();
+      applySettings();
+    },
     'menu:toggle-wrap': () => { settings.wrap = !settings.wrap; persistSettings(); applySettings(); },
     'menu:toggle-ligatures': () => toggleSetting('ligatures'),
     'menu:font-type': setEditorFontType,
@@ -6540,6 +6711,7 @@ const shortcutActionHandlers = {
   complete: () => startCompletion(activeEditor()),
   toggleWrap: () => { settings.wrap = !settings.wrap; persistSettings(); applySettings(); },
   toggleSidebar: () => toggleSetting('showSidebar'), toggleTabBar: () => toggleSetting('showTabBar'), toggleToolbar: () => toggleSetting('showToolbar'),
+  toggleInspector: toggleInspectorGroup,
   selectPreviousOutlineItem, selectNextOutlineItem,
   fontUp: () => changeFontSize(1), fontDown: () => changeFontSize(-1),
   fontReset: () => { settings.fontSize = DEFAULT_SETTINGS.fontSize; persistSettings(); applySettings(); },
@@ -6705,8 +6877,11 @@ function setOverflowMenu(open, focusActive = false) {
   menu.classList.toggle('hidden', !open);
   $('#tab-overflow').setAttribute('aria-expanded', String(open));
   if (open && focusActive) {
-    const active = menu.querySelector('[aria-checked="true"]') || menu.querySelector('[role="menuitemradio"]');
-    active?.focus();
+    requestAnimationFrame(() => {
+      if (menu.classList.contains('hidden')) return;
+      const active = menu.querySelector('[aria-checked="true"]') || menu.querySelector('[role="menuitemradio"]');
+      active?.focus();
+    });
   }
 }
 
@@ -6779,7 +6954,7 @@ function registerEvents() {
     if (event.key === 'Escape') {
       event.preventDefault();
       setOverflowMenu(false);
-      $('#tab-overflow').focus();
+      requestAnimationFrame(() => $('#tab-overflow').focus());
     } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && items.length) {
       event.preventDefault();
       const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
@@ -6981,8 +7156,8 @@ function registerEvents() {
   $('#text-replacement-manager-close').addEventListener('click', closeTextReplacementManager);
   $('#text-replacement-cancel').addEventListener('click', closeTextReplacementManager);
   $('#text-replacement-form').addEventListener('submit', saveTextReplacementManager);
-  for (const selector of ['#text-replacement-trigger', '#text-replacement-value', '#text-replacement-enabled']) {
-    $(selector).addEventListener(selector === '#text-replacement-enabled' ? 'change' : 'input', () => {
+  for (const selector of ['#text-replacement-trigger', '#text-replacement-value', '#text-replacement-enabled', '#text-replacement-automatic']) {
+    $(selector).addEventListener(selector === '#text-replacement-enabled' || selector === '#text-replacement-automatic' ? 'change' : 'input', () => {
       textReplacementFormDirty = true;
       $('#text-replacement-manager-error').textContent = '';
     });
@@ -7388,6 +7563,24 @@ function registerEvents() {
     persistSettings();
     applySettings();
   });
+  $('#spell-check-language-setting').addEventListener('change', event => {
+    const language = activeDoc?.language;
+    if (!language) { syncSpellCheckingControls(); return; }
+    const value = event.target.value === 'on' ? true : event.target.value === 'off' ? false : null;
+    settings.continuousSpellCheckingByLanguage = setContinuousSpellCheckingOverride(settings.continuousSpellCheckingByLanguage, language, value);
+    persistSettings();
+    applySettings();
+  });
+  for (const [option, descriptor] of Object.entries(SUBSTITUTION_MODE_OPTIONS)) {
+    $(`#${descriptor.controlId}`).addEventListener('change', event => {
+      const language = activeDoc?.language;
+      if (!language) { syncSubstitutionControls(); return; }
+      const value = event.target.value === 'on' ? true : event.target.value === 'off' ? false : null;
+      setSubstitutionModeOverride(option, language, value);
+      persistSettings();
+      applySettings();
+    });
+  }
   $('#symbol-balancing-language-setting').addEventListener('change', event => {
     const language = activeDoc?.language;
     if (!language) { syncSymbolBalancingControls(); return; }
@@ -7658,7 +7851,7 @@ function registerEvents() {
     if (['goToLine', 'surroundCustom'].includes(shortcut?.id) && document.querySelector('dialog[open]')) return;
     if (shortcut?.id === 'insertBackslash' && !view?.hasFocus) return;
     if (window.cotedit?.isDesktop) {
-      if (shortcut && (settings.keyBindings[shortcut.id] || ['fontUp', 'fontDown', 'fontReset', 'goToLine', 'surroundCustom', 'focusNextEditor', 'focusPreviousEditor', 'inspectCharacter', 'quickActions', 'insertBackslash'].includes(shortcut.id))) {
+      if (shortcut && (settings.keyBindings[shortcut.id] || ['fontUp', 'fontDown', 'fontReset', 'goToLine', 'surroundCustom', 'focusNextEditor', 'focusPreviousEditor', 'toggleInspector', 'inspectCharacter', 'quickActions', 'insertBackslash'].includes(shortcut.id))) {
         event.preventDefault();
         await runShortcut(shortcut.id);
       }
@@ -7668,7 +7861,7 @@ function registerEvents() {
     const editorOnly = ['undo', 'redo', 'selectLine', 'copyAsRichText', 'toggleComment', 'insertYenMark', 'insertBackslash', 'duplicateLine', 'deleteLine', 'moveLineUp', 'moveLineDown', 'joinCurrentLines', 'splitSelectionLines', 'selectColumnUp', 'selectColumnDown', 'indentLess', 'indentMore', 'complete'];
     const targetIsControl = event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]:not(.cm-content)');
     if (editorOnly.includes(shortcut.id) && (!activeEditor()?.hasFocus || targetIsControl)) return;
-    if (targetIsControl && !['new', 'newTab', 'newWindow', 'open', 'save', 'saveAs', 'saveAll', 'close', 'print', 'pageSetup', 'settings', 'quickActions', 'find', 'findNext', 'findPrevious', 'searchFolder', 'goToLine', 'useSelectionForFind', 'useSelectionForReplace', 'replaceAndFindNext', 'fontUp', 'fontDown', 'fontReset', 'focusNextEditor', 'focusPreviousEditor'].includes(shortcut.id)) return;
+    if (targetIsControl && !['new', 'newTab', 'newWindow', 'open', 'save', 'saveAs', 'saveAll', 'close', 'print', 'pageSetup', 'settings', 'quickActions', 'find', 'findNext', 'findPrevious', 'searchFolder', 'goToLine', 'useSelectionForFind', 'useSelectionForReplace', 'replaceAndFindNext', 'fontUp', 'fontDown', 'fontReset', 'focusNextEditor', 'focusPreviousEditor', 'toggleInspector'].includes(shortcut.id)) return;
     event.preventDefault();
     await runShortcut(shortcut.id);
   });

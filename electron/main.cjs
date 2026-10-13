@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ClipboardItem, clipboard, dialog, ipcMain, Menu, shell } = require('electron');
+const { app, BrowserWindow, ClipboardItem, clipboard, dialog, ipcMain, Menu, session, shell } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -25,6 +25,11 @@ const { bringAllWindowsToFront, toggleAlwaysOnTop } = require('./window-actions.
 const { DEFAULT_WINDOW_SIZE, WINDOW_SIZE_LIMITS, applyWindowSize } = require('./window-size.cjs');
 const { customAccelerator, decorateMenuShortcutLabels, formatCustomShortcutLabel, requiresCustomKeyDispatch } = require('./shortcut-menu.cjs');
 const SHORTCUTS = require('../lib/shortcuts.json');
+const PROJECT_HELP_URLS = Object.freeze({
+  home: 'https://github.com/jincaiw/cotedit',
+  releases: 'https://github.com/jincaiw/cotedit/releases',
+  issues: 'https://github.com/jincaiw/cotedit/issues/new'
+});
 const { DEFAULT_RMATE_PORT, MAX_RMATE_FILE_BYTES, RMateServer } = require('./rmate-server.cjs');
 const { collectQuickActionMenuItems, executeQuickActionMenuItem } = require('./quick-action-menu.cjs');
 const { formatDroppedFilePaths } = require('./file-drop.cjs');
@@ -330,6 +335,20 @@ function createWindow() {
     window.webContents.send('window:size-changed', { width, height });
   });
   window.webContents.on('did-start-loading', () => externalOpenReadyWindows.delete(window));
+  window.webContents.on('context-menu', (_event, params) => {
+    const word = typeof params.misspelledWord === 'string' ? params.misspelledWord.trim() : '';
+    if (!params.isEditable || !word || word.length > 128 || /[\s\u0000-\u001f\u007f]/u.test(word) || window.isDestroyed()) return;
+    const suggestions = [...new Set((Array.isArray(params.dictionarySuggestions) ? params.dictionarySuggestions : [])
+      .filter(item => typeof item === 'string' && item.length > 0 && item.length <= 128 && !/[\u0000-\u001f\u007f]/u.test(item)))].slice(0, 8);
+    const items = suggestions.length
+      ? suggestions.map(suggestion => ({ label: suggestion, click: () => { if (!window.isDestroyed()) window.webContents.replaceMisspelling(suggestion); } }))
+      : [{ label: '没有拼写建议', enabled: false }];
+    items.push({ type: 'separator' }, {
+      label: '将“' + word + '”添加到字典',
+      click: () => window.webContents.session.addWordToSpellCheckerDictionary(word)
+    });
+    Menu.buildFromTemplate(items).popup({ window });
+  });
   window.webContents.on('did-finish-load', () => {
     externalOpenReadyWindows.add(window);
     if (recoveryOwnership.release(window.id)) notifyRecoveryStoreChanged();
@@ -383,6 +402,11 @@ function createWindow() {
 
 function sendCommand(channel, value, requestedWindow) {
   targetWindow(requestedWindow)?.webContents.send(channel, value);
+}
+
+function openProjectHelpPage(page) {
+  const url = Object.hasOwn(PROJECT_HELP_URLS, page) ? PROJECT_HELP_URLS[page] : null;
+  if (url) shell.openExternal(url).catch(error => console.error('Failed to open CotEdit help link:', error));
 }
 
 function queueExternalOpenPath(filePath, requestedWindow = null) {
@@ -531,6 +555,14 @@ function buildMenu() {
       { type: 'separator' }, { role: 'cut' }, { role: 'copy' },
       { id: 'menu-copy-as-rich-text', label: '以富文本复制', accelerator: accelerator('copyAsRichText'), click: () => sendCommand('menu:copy-as-rich-text') },
       { role: 'paste' },
+      { label: '拼写和语法', submenu: [
+        { id: 'menu-spelling-panel', label: '显示拼写和语法…', enabled: false, toolTip: 'Electron 不提供 CotEditor 的原生拼写面板。' },
+        { id: 'menu-check-spelling-now', label: '立即检查文稿', enabled: false, toolTip: '当前编辑器只支持输入时的系统拼写标记。' },
+        { type: 'separator' },
+        { id: 'menu-toggle-spelling', label: '输入时检查拼写', type: 'checkbox', click: () => sendCommand('menu:toggle-spelling') },
+        { id: 'menu-toggle-grammar', label: '同时检查语法', type: 'checkbox', enabled: false, toolTip: 'Electron 没有可移植的系统语法检查接口。' },
+        { id: 'menu-toggle-auto-correct', label: '自动更正拼写', type: 'checkbox', enabled: false, toolTip: 'Electron 不提供与 NSTextView 等价的自动更正开关。' }
+      ] },
       { id: 'menu-paste-exactly', label: '精确粘贴', accelerator: accelerator('pasteExactly'), click: async () => {
         const text = await clipboard.readText();
         sendCommand('menu:paste-exactly', typeof text === 'string' ? text : '');
@@ -553,7 +585,18 @@ function buildMenu() {
         { id: 'menu-replace-quotes', label: '替换直引号为弯引号', click: () => sendCommand('menu:replace-quotes') },
         { id: 'menu-straighten-quotes', label: '弯引号转为直引号', click: () => sendCommand('menu:straighten-quotes') },
         { id: 'menu-replace-dashes', label: '将双连字符替换为长破折号', click: () => sendCommand('menu:replace-dashes') },
-        { id: 'menu-replace-text', label: '替换文本', click: () => sendCommand('menu:replace-text') }
+        { id: 'menu-replace-text', label: '替换文本', click: () => sendCommand('menu:replace-text') },
+        { id: 'menu-show-substitutions', label: '显示替换面板…', enabled: false, toolTip: 'Electron 没有 CotEditor 使用的系统替换面板。' },
+        { type: 'separator' },
+        { id: 'menu-smart-quotes', label: '智能引号', type: 'checkbox', click: () => sendCommand('menu:toggle-smart-quotes') },
+        { id: 'menu-smart-dashes', label: '智能破折号', type: 'checkbox', click: () => sendCommand('menu:toggle-smart-dashes') },
+        { id: 'menu-automatic-text-replacement', label: '文本替换', type: 'checkbox', click: () => sendCommand('menu:toggle-text-replacement') },
+        { id: 'menu-smart-copy-paste', label: '智能复制/粘贴', type: 'checkbox', enabled: false, toolTip: '当前编辑器没有 CotEditor 的文本视图智能空格行为。' },
+        { id: 'menu-automatic-period', label: '双击空格插入句点', type: 'checkbox', enabled: false, toolTip: '该行为依赖地区键盘与系统文本替换设置。' }
+      ] },
+      { label: '语音', submenu: [
+        { id: 'menu-speech-start', label: '开始朗读', click: () => sendCommand('menu:speech-start') },
+        { id: 'menu-speech-stop', label: '停止朗读', click: () => sendCommand('menu:speech-stop') }
       ] }
     ] },
     { label: '格式', submenu: [
@@ -610,7 +653,7 @@ function buildMenu() {
         { id: 'menu-folder-find', label: '文件夹查找', accelerator: accelerator('folderFind'), click: () => sendCommand('menu:folder-find') }
       ] },
       { id: 'menu-toggle-status-bar', label: '显示状态栏', type: 'checkbox', click: () => sendCommand('menu:toggle-status-bar') },
-      { id: 'menu-toggle-split', label: '切换分屏', type: 'checkbox', accelerator: accelerator('toggleSplit'), click: () => sendCommand('menu:toggle-split') },
+      { id: 'menu-toggle-split', label: '分屏编辑器', type: 'checkbox', click: () => sendCommand('menu:toggle-split') },
       { id: 'menu-close-split', label: '关闭分屏编辑器', click: () => sendCommand('menu:toggle-split') },
       { id: 'menu-focus-next-editor', label: '将焦点移至下一个编辑器', accelerator: accelerator('focusNextEditor'), registerAccelerator: false, click: () => sendCommand('menu:focus-next-editor') },
       { id: 'menu-focus-previous-editor', label: '将焦点移至上一个编辑器', accelerator: accelerator('focusPreviousEditor'), registerAccelerator: false, click: () => sendCommand('menu:focus-previous-editor') },
@@ -620,7 +663,8 @@ function buildMenu() {
         { id: 'menu-document-inspector', label: '文稿检查器', click: () => sendCommand('menu:document-inspector') },
         { id: 'menu-outline', label: '大纲', click: () => sendCommand('menu:outline') },
         { id: 'menu-inspector', label: 'Unicode 字符', click: () => sendCommand('menu:inspector') },
-        { id: 'menu-warnings', label: '警告', click: () => sendCommand('menu:warnings') }
+        { id: 'menu-warnings', label: '警告', click: () => sendCommand('menu:warnings') },
+        { id: 'menu-toggle-inspector', label: '显示检查器', type: 'checkbox', accelerator: accelerator('toggleInspector'), registerAccelerator: false, click: () => sendCommand('menu:toggle-inspector') }
       ] },
       { type: 'separator' }, { role: 'togglefullscreen' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
       { type: 'separator' }, { role: 'toggleDevTools' }
@@ -748,7 +792,12 @@ function buildMenu() {
     ] },
     { label: '帮助', submenu: [
       { label: 'CotEdit 使用说明', click: () => sendCommand('menu:help') },
-      { label: '键盘快捷键', click: () => sendCommand('menu:shortcuts') }
+      { label: '键盘快捷键', click: () => sendCommand('menu:shortcuts') },
+      { type: 'separator' },
+      { label: '新版本动态…', click: () => openProjectHelpPage('releases') },
+      { label: '发行说明…', click: () => openProjectHelpPage('releases') },
+      { label: '报告问题…', click: () => openProjectHelpPage('issues') },
+      { label: 'CotEdit 项目主页', click: () => openProjectHelpPage('home') }
     ] }
   ];
   decorateMenuShortcutLabels(template, { ...defaultMenuShortcutBindings(), ...userShortcutBindings }, process.platform, shortcutCaptureActive);
@@ -771,6 +820,14 @@ function updateMenuState(payload = {}, window = BrowserWindow.getFocusedWindow()
     hasSelection: payload.hasSelection === true,
     toggleCommentUncommentable: payload.toggleCommentUncommentable === true,
     canInspectCharacter: payload.canInspectCharacter === true,
+    continuousSpellChecking: payload.continuousSpellChecking === true,
+    smartQuotes: payload.smartQuotes === true,
+    smartDashes: payload.smartDashes === true,
+    automaticTextReplacement: payload.automaticTextReplacement === true,
+    speechAvailable: payload.speechAvailable === true,
+    hasSpeechText: payload.hasSpeechText === true,
+    speechActive: payload.speechActive === true,
+    inspectorVisible: payload.inspectorVisible === true,
     hasAnySelection: payload.hasAnySelection === true,
     hasRichTextSelection: payload.hasRichTextSelection === true,
     hasSearchQuery: payload.hasSearchQuery === true,
@@ -1355,11 +1412,23 @@ app.on('second-instance', async (_event, argv, workingDirectory) => {
   for (const filePath of filePaths) queueExternalOpenPath(filePath, window);
 });
 
+function configureSpellChecker() {
+  const spellSession = session.defaultSession;
+  spellSession.setSpellCheckerEnabled(true);
+  if (process.platform === 'darwin') return;
+  const available = spellSession.availableSpellCheckerLanguages;
+  const locale = app.getLocale().replace(/_/g, '-').toLowerCase();
+  const language = available.find(item => item.toLowerCase() === locale)
+    || available.find(item => item.split(/[-_]/, 1)[0].toLowerCase() === locale.split('-', 1)[0]);
+  spellSession.setSpellCheckerLanguages(language ? [language] : []);
+}
+
 app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
   await loadRecentDocuments();
   await loadRemoteEditingSettings();
   await reloadUserScripts();
+  configureSpellChecker();
   buildMenu();
   createWindow();
   for (const filePath of await collectExternalFilePaths(process.argv, process.cwd())) queueExternalOpenPath(filePath);

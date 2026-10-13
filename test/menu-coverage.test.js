@@ -146,7 +146,7 @@ test('Text > Insert Snippet is a dynamic syntax-scoped menu and retains its mana
   assert.match(renderer, /'menu:manage-snippets': showSnippetManager/);
 });
 
-test('Substitutions exposes the selection-only local Replace Text command and its settings manager', () => {
+test('Substitutions exposes manual and opt-in automatic local Replace Text rules', () => {
   assert.match(main, /id: 'menu-replace-text', label: '替换文本', click: \(\) => sendCommand\('menu:replace-text'\)/);
   assert.ok(preload.includes("'menu:replace-text'"));
   assert.match(renderer, /'menu:replace-text': replaceTextInSelection/);
@@ -154,7 +154,10 @@ test('Substitutions exposes the selection-only local Replace Text command and it
   assert.match(renderer, /hasTextReplacements: settings\.textReplacements\.some\(rule => rule\.enabled\)/);
   assert.match(index, /id="text-replacements-open"/);
   assert.match(index, /id="text-replacement-manager-dialog"/);
-  assert.match(index, /不自动改写输入，也不读取或同步 macOS 系统替换词/);
+  assert.match(index, /勾选“输入时自动应用”的规则[\s\S]*?不读取或同步 macOS 系统替换词/);
+  assert.match(index, /id="text-replacement-automatic"/);
+  assert.match(renderer, /automatic: \$\('#text-replacement-automatic'\)\.checked/);
+  assert.match(renderer, /textReplacement: substitutionModeEnabled\('textReplacement', language\)/);
   assert.match(renderer, /\$\('#text-replacement-form'\)\.addEventListener\('submit', saveTextReplacementManager\)/);
   assert.match(renderer, /\$\('#text-replacement-manager-dialog'\)\.addEventListener\('cancel',[\s\S]*?confirmDiscardTextReplacementDraft/);
   assert.match(renderer, /function saveTextReplacementManager\([\s\S]*?normalizeTextReplacements\(next\)/);
@@ -613,7 +616,13 @@ test('Help menu opens an in-app guide and the inspector group includes document 
   const documentInspector = main.match(/id: 'menu-document-inspector',[^\n]*/)?.[0];
   assert.ok(documentInspector);
   assert.doesNotMatch(documentInspector, /accelerator:/, 'CotEditor Document Inspector has no static default key equivalent');
+  assert.match(main, /id: 'menu-document-inspector',[^\n]*/);
+  assert.doesNotMatch(documentInspector, /accelerator:/, 'CotEditor Document Inspector has no static default key equivalent');
   assert.ok(!shortcuts.some(shortcut => shortcut.id === 'showInspector'), 'do not invent a Document Inspector default shortcut');
+  assert.match(main, /home: 'https:\/\/github\.com\/jincaiw\/cotedit'/);
+  assert.match(main, /releases: 'https:\/\/github\.com\/jincaiw\/cotedit\/releases'/);
+  assert.match(main, /issues: 'https:\/\/github\.com\/jincaiw\/cotedit\/issues\/new'/);
+  for (const page of ['releases', 'issues', 'home']) assert.match(main, new RegExp(`openProjectHelpPage\\('${page}'\\)`));
 });
 
 test('folder preview opens in a new window only after resolving a regular file inside the selected root', () => {

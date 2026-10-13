@@ -11,6 +11,18 @@ test('settings export round-trips validated preferences', () => {
   assert.deepEqual(parseSettingsFile(serialized), { ...DEFAULT_SETTINGS, theme: 'dark', printPageSize: 'Letter', printOrientation: 'landscape' });
 });
 
+test('settings export/import preserves per-syntax substitution choices', () => {
+  const settings = {
+    smartQuotesByLanguage: { plaintext: true },
+    smartDashesByLanguage: { markdown: true },
+    automaticTextReplacementByLanguage: { javascript: false }
+  };
+  assert.deepEqual(parseSettingsFile(serializeSettingsFile(settings)), {
+    ...DEFAULT_SETTINGS,
+    ...settings
+  });
+});
+
 test('settings export/import preserves navigation bar visibility', () => {
   assert.equal(parseSettingsFile(serializeSettingsFile({ showNavigationBar: true })).showNavigationBar, true);
   assert.equal(parseSettingsFile(serializeSettingsFile({ showNavigationBar: false })).showNavigationBar, false);

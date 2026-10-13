@@ -2,7 +2,20 @@
 
 CotEdit 是一个独立开发的跨平台文本与源代码编辑器，界面、菜单、快捷键与功能对齐 [CotEditor](https://coteditor.com/)（对齐基线：CotEditor 7.1.2）。基于 Electron + CodeMirror 6，支持 macOS、Windows 与 Linux。
 
-本版本仍有的平台差异：不提供 AppKit 原生服务（如系统标准词典补全、Finder 标签原生写入）、应用内购买、SwiftUI ThemeEditor 原生面板；CotEditor 的 Apple 帮助书籍以站内说明替代；rmate 远程编辑的“Remote”窗口副标题以窗口标题前缀“远程 · ”与检查器“远程文稿”呈现。自定义编辑器主题现支持多主题管理、改名、删除和颜色编辑，但控件使用跨平台 Web UI。详见 [docs/compatibility.md](docs/compatibility.md)。
+CotEdit 是跨平台桌面文本编辑器，不能将 Electron/CodeMirror 宣称为 CotEditor 的逐像素或文本内核移植。跨平台功能、按平台差异和未完成事项列于[兼容性记录](docs/compatibility.md)；持续差异计划见[实施计划](docs/parity-plan.md)，菜单逐项差异见[菜单清单](docs/menu-parity.md)。
+
+## 当前对齐状态
+
+- 对照 CotEditor 7.1.2 与上游 `main`（`f90e70a644d968e33d48cc6b8258e72a06957f32`）建立持续差异盘点和实施顺序，详见 [docs/parity-plan.md](docs/parity-plan.md)、[docs/menu-parity.md](docs/menu-parity.md) 与[兼容性记录](docs/compatibility.md)。跨平台项目仍有未完成的设置、菜单和目标系统实机验收；不宣称与 Cocoa 原生应用完全等价。
+- CotEdit 提供按语法拼写检查、智能引号/破折号、自动文本替换和系统字典右键建议；Edit > 语音可朗读选区/全文，Inspector 有总开关，Help 提供发行说明/问题报告入口。系统语法检查、自动更正、原生拼写/替换面板及 AppKit 语音菜单仍受平台接口限制。
+
+## 1.0.3（2026-10-13）
+
+- 完成按语法的输入时拼写检查，以及智能引号、智能破折号和自动文本替换设置；旧版自定义替换规则默认保持手动，用户可逐条启用输入时替换。
+- Edit 菜单新增开始/停止朗读和显示检查器总开关；分屏焦点键位按 CotEditor 菜单 storyboard 调整，移除没有上游静态快捷键依据的默认分屏键位。
+- Help 菜单新增 CotEdit 发行说明、报告问题和项目主页入口，使用固定 HTTPS 地址交由系统默认浏览器打开。
+- 稳定设置面板和标签溢出菜单的 UI 冒烟步骤；补充拼写/语音/Inspector/文本替换/Help 回归覆盖。
+- `npm test` **878/878** 通过；`npm run test:ui` **4/4** 通过，生产构建成功。
 
 ## 1.0.2（2026-10-13）
 
@@ -508,9 +521,9 @@ npm run package:windows
 npm run package:mac
 ```
 
-当前 `package.json` 使用 `https://example.invalid/cotedit` 满足 electron-builder 的 DEB 元数据要求；正式对外分发前须替换成 CotEdit 的真实项目主页。
+CotEdit 发布包元数据使用项目主页 `https://github.com/jincaiw/cotedit`；历史 0.5.16 发行状态记录如下。
 
-## 当前验证与差异
+## 0.5.16 历史 Linux 发行与兼容性验证
 
 正式发行版仍为 **0.5.16**；工作源码以 CotEditor **7.1.1 稳定版**为兼容基线（不将 7.2 alpha 当作稳定目标）。本轮修正 `.cotrpl` 定义级 `matchesFullWord`：由“只检查命中范围外侧都不是字母/标记/数字/下划线”改为 ICU 默认 `\b` 的两端 word/non-word 类别切换，使用 Alphabetic、Mark、Decimal_Number、Connector_Punctuation、U+200C 和 U+200D；覆盖标点端点、罗马数字、非十进制数字、连接标点、join controls 与默认模式下的撇号边界。CotEditor 7.1.1 `TextFind.swift` 以 `^\b.+\b$` 和 transparent bounds 做全词检查；ICU 明确把 UAX #29 `useUnicodeWordBoundaries` 作为另一种 opt-in 语义，CotEdit 本轮未实现该位，也不宣称与 Foundation/ICU 全部一致。此前文件夹搜索非正则文字模式已补 NFD 规范等价匹配；预览保留原文，正则模式不归一化。
 定向多重替换测试 **37/37**，完整 `npm test` **464/464**，两处变更 JavaScript 文件 `node --check` **2/2** 通过。正式 0.5.16 AppImage/DEB SHA-256 清单校验通过；未构建、未运行 UI smoke 或打包，`dist/` 与 `release/` 未触碰。测试在 Linux Node 环境运行，不证明 macOS/Windows 原生菜单、Foundation 文本系统或辅助技术等价；文稿隐私、权限和数据保留策略未改变。

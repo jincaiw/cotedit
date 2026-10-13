@@ -26,11 +26,13 @@ test('normalizes local replacement records with bounded size, unique IDs and uni
     { id: 'empty', trigger: '', replacement: 'ignored' },
     { id: 'nul', trigger: 'bad\0trigger', replacement: 'ignored' },
     { id: 'disabled', trigger: 'brb', replacement: 'be right back', enabled: false },
+    { id: 'automatic', trigger: 'brb2', replacement: 'be right back', automatic: true },,
     { id: 'large', trigger: 'x', replacement: 'x'.repeat(MAX_TEXT_REPLACEMENT_FIELD_BYTES + 1) }
   ]);
   assert.deepEqual(normalized, [
     { id: 'one', trigger: 'omw', replacement: 'on my way', enabled: true },
-    { id: 'disabled', trigger: 'brb', replacement: 'be right back', enabled: false }
+    { id: 'disabled', trigger: 'brb', replacement: 'be right back', enabled: false },
+    { id: 'automatic', trigger: 'brb2', replacement: 'be right back', enabled: true, automatic: true }
   ]);
   assert.deepEqual(normalizeTextReplacements('invalid'), []);
   assert.equal(normalizeTextReplacements(Array.from({ length: MAX_TEXT_REPLACEMENTS + 1 }, (_, index) => ({ id: `r${index}`, trigger: `t${index}`, replacement: '' }))).length, MAX_TEXT_REPLACEMENTS);

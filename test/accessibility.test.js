@@ -203,6 +203,8 @@ test('search and tab overflow controls expose expanded state and keyboard naviga
   assert.match(renderer, /function closeSearchPanel\(\) \{[\s\S]*?setAttribute\('aria-expanded', 'false'\)/);
   assert.match(renderer, /searchPanelVisible\(\) && !document\.querySelector\('dialog\[open\]'\)\)\s*\{\s*event\.preventDefault\(\);\s*closeSearchPanel\(\);/);
   assert.match(renderer, /event\.key === 'Home' \? 0 : event\.key === 'End' \? items\.length - 1/);
+  assert.match(renderer, /function setOverflowMenu\(open, focusActive = false\)[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?active\?\.focus\(\)/);
+  assert.match(renderer, /if \(event\.key === 'Escape'\) \{[\s\S]*?setOverflowMenu\(false\);\s*requestAnimationFrame\(\(\) => \$\('#tab-overflow'\)\.focus\(\)\)/);
   assert.match(renderer, /requestAnimationFrame\(\(\) => \[\.\.\.\$\('#tabs'\)/);
 });
 
