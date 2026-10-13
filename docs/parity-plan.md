@@ -47,6 +47,7 @@
 - [ ] 在各平台真实桌面窗口逐项检查菜单、快捷键、滚动、缩放、拖放、焦点和打印；把未能实测的项目保留为未确认，不以静态或 Node 检查宣称等价。
 - [x] Electron 多重替换与桌面烟测修正：修正 `regexAnchorsMatchLines` 默认已开启时的烟测逻辑；同步修复分屏按键的 CDP 平台修饰键、设置内管理按钮的触发和标签溢出菜单聚焦等待。完整 `npm run test:ui` 4/4 通过。
 - [x] 发布验收：CotEdit 1.0.3 已完成 `npm test` 878/878、桌面 UI smoke 4/4 与本机构建；`v1.0.3` 的 GitHub Actions 三平台单测、构建和安装包任务全部通过，并发布 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。流程：[Actions run 38408446933](https://github.com/jincaiw/cotedit/actions/runs/38408446933)，[Release v1.0.3](https://github.com/jincaiw/cotedit/releases/tag/v1.0.3)。
+- [x] 发布验收：CotEdit 1.0.4 已完成 `npm test` 885/885、`npm run test:ui` 4/4、生产构建及变更 JavaScript 语法检查；`v1.0.4` 的 GitHub Actions 三平台单测、构建与打包全部成功，发布 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。流程：[Actions run 38413922039](https://github.com/jincaiw/cotedit/actions/runs/38413922039)，[Release v1.0.4](https://github.com/jincaiw/cotedit/releases/tag/v1.0.4)。
 
 ## 当前限制
 
