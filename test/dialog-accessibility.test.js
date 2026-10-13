@@ -24,6 +24,17 @@ test('Help dialog and document inspector panel have accessible names, descriptio
   assert.match(html, /字符数（字素簇）/);
 });
 
+test('manager dialog close events do not steal focus from subsequently opened editor UI', () => {
+  for (const [name, dialog] of [
+    ['File Drop', 'file-drop-settings-dialog'],
+    ['snippet', 'snippet-manager-dialog'],
+    ['text replacement', 'text-replacement-manager-dialog'],
+    ['multiple replacement', 'multiple-replace-dialog']
+  ]) {
+    assert.match(renderer, new RegExp(`function restore${name === 'File Drop' ? 'FileDropRuleManager' : name === 'snippet' ? 'SnippetManager' : name === 'text replacement' ? 'TextReplacementManager' : 'MultipleReplaceManager'}Focus\\(\\)[\\s\\S]*?restoreDialogFocus\\(\\$\\('#${dialog}'\\), target\\)`));
+  }
+});
+
 test('Help dialog and document inspector panel restore editor access and refresh current document details', () => {
   assert.match(renderer, /function showHelp\(\)/);
   assert.match(renderer, /function toggleDocumentInspector\(\)/);

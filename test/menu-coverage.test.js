@@ -486,7 +486,7 @@ test('file menu exposes page setup, preferences, and external integration settin
   assert.match(renderer, /function applyPageSetup\(event\)/);
   assert.match(index, /id="print-line-numbers" type="checkbox"/);
   assert.match(renderer, /printLineNumbers: \$\('#print-line-numbers'\)\.checked/);
-  assert.match(renderer, /pageSetup: \{ \.\.\.settings, writingDirection: activeDoc\.writingDirection \}/);
+  assert.match(renderer, /pageSetup: \{ \.\.\.settings, fontType: fontTypeForDocument\(\), writingDirection: activeDoc\.writingDirection \}/);
   assert.match(main, /printOptions\(pageSetup\)/);
   assert.match(preload, /exportSettings: \(settings\) => ipcRenderer\.invoke\('settings:export', settings\)/);
   assert.match(preload, /importSettings: \(\) => ipcRenderer\.invoke\('settings:import'\)/);

@@ -240,9 +240,15 @@ test('Electron renderer exposes a labelled tabpanel and maintains keyboard/focus
       { role: 'checkbox', name: '自动换行' },
       { role: 'checkbox', name: '使用字体连字' },
       { role: 'button', name: '选择字体…' },
+      { role: 'combobox', name: '当前语法字体类型' },
       { role: 'combobox', name: '新文稿默认书写方向' }
     ]);
     assert.equal(await client.evaluate('document.querySelector("#ligatures-setting").checked'), true, 'ligatures preserve the current default rendering');
+    assert.equal(await client.evaluate('document.querySelector("#font-type-language-setting").value'), 'mode-default', 'plain text follows its general Mode font type');
+    await client.evaluate(`(() => { const select = document.querySelector('#font-type-language-setting'); select.value = 'monospaced'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).fontTypeByLanguage.plaintext === "monospaced" && document.documentElement.dataset.fontType === "monospaced"'), 'font type override applies to the current syntax');
+    await client.evaluate(`(() => { const select = document.querySelector('#font-type-language-setting'); select.value = 'mode-default'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await waitFor(async () => client.evaluate('!JSON.parse(localStorage.getItem("cotedit.settings.v1")).fontTypeByLanguage.plaintext && document.documentElement.dataset.fontType === "standard"'), 'font type can return to the current syntax Mode default');
     await client.evaluate('document.querySelector("#font-family-open").click(); true');
     await waitFor(async () => client.evaluate('document.querySelector("#font-picker-dialog").open && document.activeElement.id === "font-family-input"'), 'Show Fonts opens with family search focus');
     await inspectAccessibleControls(client, 'Show Fonts dialog', [

@@ -120,7 +120,7 @@ import { verticalTextAdjacentPosition } from '../lib/vertical-navigation.js';
 import { selectEnclosingPairAtDoubleClick } from '../lib/double-click-selection.js';
 import { formatExternalApplicationLabel } from '../lib/external-application-label.js';
 import { Prec } from '@codemirror/state';
-import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, continuousSpellCheckingEnabledForLanguage, setContinuousSpellCheckingOverride, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeLineHeight, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
+import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, continuousSpellCheckingEnabledForLanguage, fontTypeForLanguage, setFontTypeOverride, setContinuousSpellCheckingOverride, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeLineHeight, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
 import { defaultSyntaxFileExtension, normalizeDefaultSyntaxId, resolveDefaultSyntaxId } from '../lib/default-syntax.js';
 import { deleteSoftTab, insertSoftTab } from '../lib/soft-tabs.js';
 import { handleSelectedLinesTab } from '../lib/tab-selection-indent.js';
@@ -1178,6 +1178,24 @@ function symbolBalancingExtension(doc = activeDoc) {
     : [];
 }
 
+function fontTypeModeDefault(language) {
+  const syntax = customSyntaxes.find(item => item.id === language);
+  if (syntax) return syntax.kind === 'general' ? 'standard' : 'monospaced';
+  return ['plaintext', 'markdown'].includes(language) ? 'standard' : 'monospaced';
+}
+
+function fontTypeForDocument(doc = activeDoc) {
+  return fontTypeForLanguage(settings, doc?.language, fontTypeModeDefault(doc?.language));
+}
+
+function syncFontTypeControl() {
+  const language = activeDoc?.language;
+  const overrides = settings.fontTypeByLanguage;
+  const exact = language && Object.hasOwn(overrides, language) ? overrides[language] : null;
+  const inherited = overrides['*'];
+  $('#font-type-language-setting').value = exact || (inherited && inherited !== 'mode-default' ? inherited : 'mode-default');
+}
+
 function spellCheckingModeDefault(language) {
   const syntax = customSyntaxes.find(item => item.id === language);
   if (syntax) return syntax.kind === 'general';
@@ -2223,7 +2241,7 @@ function syncMenuState() {
     tabWidth: settings.tabWidth,
     autoExpandTab: effectiveAutoExpandTab(activeDoc?.detectedIndentStyle, settings.autoExpandTab),
     theme: settings.theme,
-    fontType: settings.fontType,
+    fontType: fontTypeForDocument(),
     wrap: Boolean(settings.wrap),
     verticalText: Boolean(settings.verticalText),
     ligatures: Boolean(settings.ligatures),
@@ -2325,8 +2343,9 @@ function changeFontSize(delta) {
 
 function setEditorFontType(value) {
   if (value !== 'standard' && value !== 'monospaced') return false;
-  if (settings.fontType === value) return true;
-  settings.fontType = value;
+  const language = activeDoc?.language;
+  if (!language) return false;
+  settings.fontTypeByLanguage = setFontTypeOverride(settings.fontTypeByLanguage, language, value);
   persistSettings();
   applySettings();
   return true;
@@ -2527,18 +2546,20 @@ function applySettings() {
   populateDefaultSyntaxOptions();
   root.dataset.theme = actualTheme;
   root.dataset.ligatures = settings.ligatures ? 'on' : 'off';
-  root.dataset.fontType = settings.fontType;
+  const fontType = fontTypeForDocument();
+  root.dataset.fontType = fontType;
   applyCustomEditorThemeStyles();
   $('#theme-toggle').setAttribute('aria-pressed', String(actualTheme === 'dark'));
   $('#theme-toggle').setAttribute('aria-label', `当前为${actualTheme === 'dark' ? '深色' : '浅色'}外观；切换外观`);
   root.style.setProperty('--editor-font-size', `${settings.fontSize}px`);
-  root.style.setProperty('--editor-font-family', editorFontFamilyStack(settings.fontFamily, settings.fontType));
+  root.style.setProperty('--editor-font-family', editorFontFamilyStack(settings.fontFamily, fontType));
   root.style.setProperty('--editor-line-height', String(settings.lineHeight));
   $('#font-size').textContent = settings.fontSize;
   $('#line-height-setting').value = settings.lineHeight.toFixed(1);
   $('#window-width-setting').value = settings.windowWidth == null ? '' : String(settings.windowWidth);
   $('#window-height-setting').value = settings.windowHeight == null ? '' : String(settings.windowHeight);
   $('#ligatures-setting').checked = settings.ligatures;
+  syncFontTypeControl();
   syncIndentControls();
   $('#theme-select').value = settings.theme;
   syncBuiltinThemeSelect();
@@ -2768,7 +2789,7 @@ function syncFontFamilyPreview() {
   const valid = !input.value.trim() || Boolean(family);
   $('#font-picker-status').textContent = valid ? '' : '字体名称仅可包含字母、数字、空格、点、下划线和连字符，最多 80 个字符。';
   $('#font-picker-apply').disabled = !valid;
-  $('#font-family-preview').style.fontFamily = editorFontFamilyStack(family, settings.fontType);
+  $('#font-family-preview').style.fontFamily = editorFontFamilyStack(family, fontTypeForDocument());
 }
 
 function showFontPicker() {
@@ -3554,8 +3575,7 @@ function restoreSnippetManagerFocus() {
   selectedSnippetId = null;
   snippetDraftIsNew = false;
   snippetFormDirty = false;
-  if (target?.isConnected && target !== document.body && !target.closest?.('.hidden, [hidden]')) target.focus();
-  else activeEditor()?.focus();
+  restoreDialogFocus($('#snippet-manager-dialog'), target);
 }
 
 function renderTextReplacementList() {
@@ -3696,8 +3716,7 @@ function restoreTextReplacementManagerFocus() {
   selectedTextReplacementId = null;
   textReplacementDraftIsNew = false;
   textReplacementFormDirty = false;
-  if (target?.isConnected && target !== document.body && !target.closest?.('.hidden, [hidden]')) target.focus();
-  else activeEditor()?.focus();
+  restoreDialogFocus($('#text-replacement-manager-dialog'), target);
 }
 
 function makeMultipleReplaceId() {
@@ -4130,8 +4149,7 @@ function restoreMultipleReplaceManagerFocus() {
   multipleReplaceDraftIsNew = false;
   multipleReplaceDraftDirty = false;
   multipleReplaceDraftInSelection = settings.multipleReplaceInSelection;
-  if (target?.isConnected && target !== document.body && !target.closest?.('.hidden, [hidden]')) target.focus();
-  else activeEditor()?.focus();
+  restoreDialogFocus($('#multiple-replace-dialog'), target);
 }
 
 function populateLanguageMenu() {
@@ -4419,7 +4437,7 @@ async function printDocument() {
       text: view?.state.doc.toString() ?? activeDoc.text,
       selectionText: selection && !selection.empty ? view.state.sliceDoc(selection.from, selection.to) : '',
       selectionStartLine: selection && !selection.empty ? view.state.doc.lineAt(selection.from).number : 1,
-      pageSetup: { ...settings, writingDirection: activeDoc.writingDirection }
+      pageSetup: { ...settings, fontType: fontTypeForDocument(), writingDirection: activeDoc.writingDirection }
     });
     if (result?.canceled) return;
     if (!result?.success) showToast(`打印未完成${result?.error ? `：${result.error}` : ''}`);
@@ -7772,6 +7790,13 @@ function registerEvents() {
     $('#shortcut-capture-status').textContent = '所有快捷键已恢复默认。';
   });
   $('#font-family-open').addEventListener('click', showFontPicker);
+  $('#font-type-language-setting').addEventListener('change', event => {
+    const language = activeDoc?.language;
+    if (!language) { syncFontTypeControl(); return; }
+    settings.fontTypeByLanguage = setFontTypeOverride(settings.fontTypeByLanguage, language, event.target.value);
+    persistSettings();
+    applySettings();
+  });
   $('#font-family-input').addEventListener('input', syncFontFamilyPreview);
   $('#font-family-reset').addEventListener('click', () => { $('#font-family-input').value = ''; syncFontFamilyPreview(); });
   $('#font-picker-apply').addEventListener('click', applyFontFamily);

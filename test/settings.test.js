@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
+import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, DEFAULT_SETTINGS, fontTypeForLanguage, normalizeKeyBindings, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride, setFontTypeOverride } from '../lib/settings.js';
 
 test('settings default safely for malformed storage values', () => {
   assert.deepEqual(normalizeSettings(null), { ...DEFAULT_SETTINGS });
@@ -187,6 +187,18 @@ test('editor font type defaults to the existing monospaced rendering and only ac
   assert.equal(normalizeSettings({ fontType: 'standard' }).fontType, 'standard');
   assert.equal(normalizeSettings({ fontType: 'monospaced' }).fontType, 'monospaced');
   assert.equal(normalizeSettings({ fontType: 'serif' }).fontType, 'monospaced');
+});
+
+test('font type defaults by Mode, preserves legacy global choices, and supports per-syntax overrides', () => {
+  assert.equal(fontTypeForLanguage(normalizeSettings({}), 'plaintext', 'standard'), 'standard');
+  assert.equal(fontTypeForLanguage(normalizeSettings({}), 'javascript', 'monospaced'), 'monospaced');
+  assert.deepEqual(normalizeSettings({ fontType: 'standard' }).fontTypeByLanguage, { '*': 'standard' });
+  const overrides = setFontTypeOverride({}, 'javascript', 'standard');
+  assert.deepEqual(overrides, { javascript: 'standard' });
+  assert.equal(fontTypeForLanguage({ fontTypeByLanguage: overrides }, 'javascript', 'monospaced'), 'standard');
+  assert.equal(fontTypeForLanguage({ fontTypeByLanguage: overrides }, 'python', 'monospaced'), 'monospaced');
+  assert.deepEqual(setFontTypeOverride(overrides, 'javascript', 'mode-default'), {});
+  assert.deepEqual(normalizeSettings({ fontTypeByLanguage: { javascript: 'standard', python: 'serif', '*': 'monospaced', bad: 'mode-default' } }).fontTypeByLanguage, { javascript: 'standard', '*': 'monospaced', bad: 'mode-default' });
 });
 
 test('diacritic-insensitive find preference defaults off and accepts only booleans', () => {

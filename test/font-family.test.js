@@ -31,7 +31,9 @@ test('font family menu, chooser, persisted setting, and both editor views are co
   assert.match(menu, /id: 'menu-show-fonts', label: '显示字体…'/);
   assert.match(preload, /'menu:show-fonts'/);
   assert.match(main, /'menu:show-fonts': showFontPicker/);
-  assert.match(main, /root\.style\.setProperty\('--editor-font-family', editorFontFamilyStack\(settings\.fontFamily, settings\.fontType\)\)/);
+  assert.match(main, /root\.style\.setProperty\('--editor-font-family', editorFontFamilyStack\(settings\.fontFamily, fontType\)\)/);
+  assert.match(main, /fontTypeByLanguage = setFontTypeOverride\(settings\.fontTypeByLanguage, language, event\.target\.value\)/);
+  assert.match(html, /id="font-type-language-setting"[^>]*aria-label="当前语法字体类型"/);
   assert.match(html, /id="font-picker-dialog"[^>]*aria-labelledby="font-picker-title"/);
   assert.match(html, /id="font-family-input"[^>]*maxlength="80"/);
   assert.match(html, /id="font-family-preview"/);

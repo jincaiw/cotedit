@@ -44,6 +44,12 @@ test('settings export/import preserves the selected editor font type and rejects
   assert.equal(parseSettingsFile(serializeSettingsFile({ fontType: 'serif' })).fontType, 'monospaced');
 });
 
+test('settings export/import preserves per-syntax font type overrides and legacy global choices', () => {
+  const imported = parseSettingsFile(serializeSettingsFile({ fontTypeByLanguage: { plaintext: 'monospaced', javascript: 'standard' } }));
+  assert.deepEqual(imported.fontTypeByLanguage, { plaintext: 'monospaced', javascript: 'standard' });
+  assert.deepEqual(parseSettingsFile(serializeSettingsFile({ fontType: 'standard' })).fontTypeByLanguage, { '*': 'standard' });
+});
+
 test('settings export/import preserves a safe editor font family and rejects injected CSS', () => {
   assert.deepEqual(parseSettingsFile(serializeSettingsFile({ fontFamily: 'Noto Sans SC' })), {
     ...DEFAULT_SETTINGS, fontFamily: 'Noto Sans SC'

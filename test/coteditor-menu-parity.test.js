@@ -141,7 +141,7 @@ test('upper- and lower-case menu commands use locale-aware Unicode transformatio
 });
 
 test('printing transmits each document writing direction to the RTL-capable print template', () => {
-  assert.match(renderer, /pageSetup: \{ \.\.\.settings, writingDirection: activeDoc\.writingDirection \}/);
+  assert.match(renderer, /pageSetup: \{ \.\.\.settings, fontType: fontTypeForDocument\(\), writingDirection: activeDoc\.writingDirection \}/);
   assert.match(printHtml, /writingDirection: value\.writingDirection === 'rtl' \? 'rtl' : 'ltr'/);
   assert.match(printHtml, /body\.rtl \.print-line \{ direction: rtl; \}/);
 });
@@ -156,14 +156,15 @@ test('Format Font Type matches CotEditor Standard/Monospaced actions without inv
   assert.ok(preload.includes("'menu:font-type'"));
   assert.ok(renderer.includes("'menu:font-type': setEditorFontType"));
   assert.match(renderer, /function setEditorFontType\(value\)[\s\S]*?persistSettings\(\)[\s\S]*?applySettings\(\)/);
-  assert.match(renderer, /root\.dataset\.fontType = settings\.fontType/);
+  assert.match(renderer, /root\.dataset\.fontType = fontType/);
+  assert.match(renderer, /fontType: fontTypeForDocument\(\)/);
   assert.match(main, /fontType: payload\.fontType === 'standard' \? 'standard' : 'monospaced'/);
   assert.match(menuState, /'menu-font-type-standard': \{ enabled: true, checked: payload\.fontType === 'standard' \}/);
   assert.match(menuState, /'menu-font-type-monospaced': \{ enabled: true, checked: payload\.fontType !== 'standard' \}/);
   const editorStyles = readFileSync(new URL('../src/style.css', import.meta.url), 'utf8');
   assert.match(editorStyles, /--editor-font-family: var\(--editor-font-monospace\)/);
   assert.match(editorStyles, /--editor-font-standard:/);
-  assert.match(renderer, /root\.style\.setProperty\('--editor-font-family', editorFontFamilyStack\(settings\.fontFamily, settings\.fontType\)\)/);
+  assert.match(renderer, /root\.style\.setProperty\('--editor-font-family', editorFontFamilyStack\(settings\.fontFamily, fontType\)\)/);
   assert.ok(!shortcuts.some(item => item.id === 'fontType'), 'CotEditor declares no default shortcut for Font Type');
 });
 
