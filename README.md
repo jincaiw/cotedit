@@ -2,7 +2,12 @@
 
 CotEdit 是一个独立开发的跨平台文本与源代码编辑器，界面、菜单、快捷键与功能对齐 [CotEditor](https://coteditor.com/)（对齐基线：CotEditor 7.1.2）。基于 Electron + CodeMirror 6，支持 macOS、Windows 与 Linux。
 
-本版本与 CotEditor 的已知差异（跨平台实现的固有边界）：不提供 macOS 独有的 AppKit 行为（如系统标准词典补全、访达标签写入用原生 API）、应用内购买捐赠、SwiftUI 主题颜色编辑器（重命名/删除用户主题）；CotEditor 的 Apple 帮助书籍以站内说明替代；rmate 远程编辑的“Remote”窗口副标题以窗口标题前缀“远程 · ”与检查器“远程文稿”呈现。详见 [docs/compatibility.md](docs/compatibility.md)。
+本版本仍有的平台差异：不提供 AppKit 原生服务（如系统标准词典补全、Finder 标签原生写入）、应用内购买、SwiftUI ThemeEditor 原生面板；CotEditor 的 Apple 帮助书籍以站内说明替代；rmate 远程编辑的“Remote”窗口副标题以窗口标题前缀“远程 · ”与检查器“远程文稿”呈现。自定义编辑器主题现支持多主题管理、改名、删除和颜色编辑，但控件使用跨平台 Web UI。详见 [docs/compatibility.md](docs/compatibility.md)。
+
+## 1.0.2（2026-10-13）
+
+- 对齐 CotEditor 主题管理工作流：可保存多个导入主题、切换、重命名、删除，并编辑正文/背景/选区/语法高亮颜色及选区、插入点、搜索高亮的系统颜色跟随选项。
+- 首次启动时迁移此前已激活的自定义主题；内置主题名称保留且不可被自定义主题覆盖；自定义主题最多保存 64 个。
 
 ## 1.0.1（2026-10-13）
 
@@ -27,9 +32,9 @@ CotEdit 是一个独立开发的跨平台文本与源代码编辑器，界面、
 
 ## 2026-10-12 CotEditor 7.1.2 内置编辑器主题（未发行源码）
 
-依据 CotEditor 7.1.2 [`ThemeView.swift`](https://github.com/coteditor/CotEditor/blob/7.1.2/CotEditor/Sources/Settings%20Window/Other%20Views/ThemeView.swift)、[`ThemeManager.swift`](https://github.com/coteditor/CotEditor/blob/7.1.2/CotEditor/Sources/Setting%20Managers/ThemeManager.swift)、[`DefaultSettings.swift`](https://github.com/coteditor/CotEditor/blob/7.1.2/CotEditor/Sources/Application/Defaults/DefaultSettings.swift) 与[内置主题资源](https://github.com/coteditor/CotEditor/tree/7.1.2/CotEditor/Resources/Themes)，将上游 14 个内置主题（Anura、Anura (Dark)、Classic、Classic (Dark)、Dendrobates、Dendrobates (Dark)、Kawazu、Lakritz、Mono、Note、Printen、Pulse、Resinifictrix、Resinifictrix (Dark)，Apache 2.0）按字节原样打包到 `lib/themes/`，并在外观设置新增“编辑器主题”选择列表。默认主题与上游 `.theme: "Anura"` 一致；未选择过主题时按当前外观回退到 Anura / Anura (Dark)。带有明暗配对的内置主题随“界面外观”在明暗变体间切换（对应上游 `equivalentSettingName(to:forDark:)`），自定义导入主题保持钉住。主题经渲染层既有 `normalizeStoredCotTheme` 通道应用，语法高亮色、系统设置跟随项（selection/insertionPoint/highlight）与既有导入主题完全同路径；`.cottheme` 由 Vite 在构建期内联进 `dist/`。本机仍以 `cotedit.cot-theme.v1` 存储规范化主题，新增 `cotedit.editor-theme-name.v1` 记录主题名；“清除”按钮恢复默认内置主题，导入 .cottheme 按钮与菜单命令不变。
+将 CotEditor 7.1.2 的 14 个内置主题按上游资源原样打包，并在外观设置提供主题选择。现提供自定义主题库，可导入多个 `.cottheme`、切换、改名、删除及编辑颜色；选区、插入点与搜索高亮可选择跟随系统颜色。自定义主题最多保存 64 个；自定义名称不能与内置主题重名。
 
-显式运行 `test/builtin-themes.test.js`、`test/settings.test.js`、`test/accessibility.test.js`、`test/version.test.js`，**N/N** 见当次 CI 输出；另跑完整套件 **866/866**，`node --check` 覆盖变更的 `src/main.js` 与 `src/builtin-themes.js`，`npm run build` 通过且 `dist/` bundle 内含主题数据。Node/静态测试不证明真实桌面观感、与 AppKit 主题编辑器逐项一致；重命名/删除用户主题、主题颜色编辑器等上游 ThemeEditor 能力未在本轮实现。
+显式运行 `test/builtin-themes.test.js`、`test/settings.test.js`、`test/accessibility.test.js`、`test/version.test.js`，**N/N** 见当次 CI 输出；另跑完整套件 **866/866**，`node --check` 覆盖变更的 `src/main.js` 与 `src/builtin-themes.js`，`npm run build` 通过且 `dist/` bundle 内含主题数据。主题管理与颜色工作流已实现跨平台版本；Node/静态检查不证明真实桌面观感与 SwiftUI ThemeEditor 视觉/辅助技术行为一致。
 
 ## 2026-10-12 CotEditor 7.1.2 捐赠菜单项与捐赠面板（未发行源码）
 

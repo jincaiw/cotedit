@@ -19,6 +19,7 @@ import { automaticTrailingWhitespaceExtension } from '../lib/auto-trim-trailing-
 import { invisibleCharacterPresentation, invisibleLineEndingPresentation } from '../lib/invisible-characters.js';
 import { documentWritingDirection as resolveDocumentWritingDirection, normalizeDocumentWritingDirections, withDocumentWritingDirection } from '../lib/document-directions.js';
 import { resolveCotEditorThemeStyles } from '../lib/cot-theme-colors.js';
+import { MAX_CUSTOM_EDITOR_THEMES, normalizeCustomEditorThemes, upsertCustomEditorTheme, renameCustomEditorTheme, removeCustomEditorTheme } from '../lib/custom-editor-themes.js';
 import { builtinThemeNames, isBuiltinThemeName, loadBuiltinTheme } from './builtin-themes.js';
 import { textTransformationTransaction } from '../lib/text-transform-range.js';
 import { documentWordCompletionSource } from '../lib/document-completions.js';
@@ -153,6 +154,7 @@ const localStorageKey = `cotedit.session.v1.${windowId}`;
 const legacyLocalStorageKey = 'cotedit.session.v1';
 const settingsKey = 'cotedit.settings.v1';
 const cotEditorThemeKey = 'cotedit.cot-theme.v1';
+const cotEditorThemesKey = 'cotedit.cot-themes.v1';
 const editorThemeNameKey = 'cotedit.editor-theme-name.v1';
 const DEFAULT_EDITOR_THEME_NAME = 'Anura';
 const cotSyntaxKey = 'cotedit.cot-syntax.v1';
@@ -163,6 +165,7 @@ let lastShortcutBindingsSent = null;
 let lastSnippetMenuSignature = null;
 let lastMultipleReplaceMenuSignature = null;
 let customEditorTheme = null;
+let customEditorThemes = [];
 let editorThemeName = '';
 let customSyntaxes = [];
 let syntaxMappingConflicts = { extensions: [], filenames: [], interpreters: [] };
@@ -382,7 +385,38 @@ function loadEditorThemeName() {
   try { return localStorage.getItem(editorThemeNameKey) || ''; } catch { return ''; }
 }
 
+function loadCustomEditorThemes() {
+  try {
+    const value = JSON.parse(localStorage.getItem(cotEditorThemesKey) || '[]');
+    return normalizeCustomEditorThemes(value, normalizeStoredCotTheme, builtinThemeNames());
+  } catch { return []; }
+}
+
+function persistCustomEditorThemes() {
+  try { localStorage.setItem(cotEditorThemesKey, JSON.stringify(customEditorThemes)); }
+  catch { showToast('自定义主题无法保存到本机设置。'); }
+}
+
+function applyCustomEditorTheme(name) {
+  const theme = customEditorThemes.find(item => item.name === name);
+  if (!theme) return false;
+  customEditorTheme = normalizeStoredCotTheme(theme);
+  if (!customEditorTheme) return false;
+  editorThemeName = customEditorTheme.name;
+  try {
+    localStorage.setItem(cotEditorThemeKey, JSON.stringify(customEditorTheme));
+    localStorage.setItem(editorThemeNameKey, editorThemeName);
+  } catch { /* storage may be unavailable */ }
+  return true;
+}
+
 const COT_THEME_BASE_KEYS = ['text', 'background', 'selection', 'lineHighlight', 'invisibles', 'insertionPoint', 'highlight'];
+const COT_THEME_COLOR_LABELS = {
+  text: '正文', background: '背景', selection: '选区', lineHighlight: '当前行', invisibles: '不可见字符',
+  insertionPoint: '插入点', highlight: '搜索高亮', keywords: '关键字', commands: '命令', types: '类型',
+  attributes: '属性', variables: '变量', values: '值', numbers: '数字', strings: '字符串', characters: '字符', comments: '注释'
+};
+const COT_THEME_SYSTEM_COLOR_ROLES = ['selection', 'insertionPoint', 'highlight'];
 const COT_THEME_COLOR_PATTERN = /^#[\da-f]{6}(?:[\da-f]{2})?$/i;
 
 /** Normalizes a raw .cottheme JSON document (bundled or imported) for the renderer. */
@@ -456,9 +490,46 @@ function syncBuiltinThemeSelect() {
   const select = $('#builtin-theme-select');
   if (!select) return;
   const current = currentEditorThemeName();
-  const customSuffix = isBuiltinThemeName(current) ? '' : `<option value="__custom__" selected>自定义：${escapeHtml(current)}</option>`;
-  select.innerHTML = builtinThemeNames().map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('') + customSuffix;
-  if (!customSuffix) select.value = current;
+  const customOptions = customEditorThemes.map(theme => `<option value="custom:${escapeHtml(theme.name)}">自定义：${escapeHtml(theme.name)}</option>`).join('');
+  select.innerHTML = builtinThemeNames().map(name => `<option value="builtin:${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('') + customOptions;
+  select.value = customEditorThemes.some(theme => theme.name === current) ? `custom:${current}` : `builtin:${current}`;
+}
+
+function syncCustomThemeEditor() {
+  const active = customEditorThemes.find(theme => theme.name === currentEditorThemeName());
+  const controls = $('#custom-theme-controls');
+  const colorEditor = $('#custom-theme-colors');
+  if (!controls || !colorEditor) return;
+  controls.hidden = !active;
+  colorEditor.replaceChildren();
+  if (!active) return;
+  $('#custom-theme-name').value = active.name;
+  for (const [key, label] of Object.entries(COT_THEME_COLOR_LABELS)) {
+    const color = active.styles[key];
+    if (!color) continue;
+    const row = document.createElement('label');
+    row.className = 'custom-theme-color-row';
+    const name = document.createElement('span');
+    name.textContent = label;
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = color.slice(0, 7);
+    picker.dataset.themeStyle = key;
+    picker.setAttribute('aria-label', `${label}颜色`);
+    row.append(name, picker);
+    if (COT_THEME_SYSTEM_COLOR_ROLES.includes(key)) {
+      const system = document.createElement('span');
+      system.className = 'custom-theme-system-color';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = active.systemSettings.includes(key);
+      checkbox.dataset.themeSystemRole = key;
+      checkbox.setAttribute('aria-label', `${label}跟随系统颜色`);
+      system.append(checkbox, document.createTextNode('跟随系统'));
+      row.append(system);
+    }
+    colorEditor.append(row);
+  }
 }
 
 function customThemeExtension() {
@@ -471,7 +542,17 @@ function customThemeExtension() {
 
 customEditorTheme = loadCustomEditorTheme();
 editorThemeName = loadEditorThemeName();
+customEditorThemes = loadCustomEditorThemes();
+if (customEditorTheme && !isBuiltinThemeName(editorThemeName || customEditorTheme.name)) {
+  try {
+    customEditorThemes = upsertCustomEditorTheme(customEditorThemes, customEditorTheme, normalizeStoredCotTheme, builtinThemeNames());
+    persistCustomEditorThemes();
+  } catch { /* keep a legacy active custom theme usable even when migration cannot be stored */ }
+}
 if (!customEditorTheme) applyBuiltinEditorTheme(resolveEditorThemeNameForAppearance(DEFAULT_EDITOR_THEME_NAME));
+else if (customEditorThemes.some(theme => theme.name === (editorThemeName || customEditorTheme.name))) {
+  applyCustomEditorTheme(editorThemeName || customEditorTheme.name);
+}
 
 window.addEventListener('storage', event => {
   if (event.key === settingsKey) {
@@ -487,6 +568,15 @@ window.addEventListener('storage', event => {
   } else if (event.key === cotEditorThemeKey) {
     try { customEditorTheme = normalizeStoredCotTheme(JSON.parse(event.newValue || 'null')); }
     catch { customEditorTheme = null; }
+    applySettings();
+  } else if (event.key === cotEditorThemesKey) {
+    customEditorThemes = loadCustomEditorThemes();
+    const activeName = currentEditorThemeName();
+    if (customEditorThemes.some(theme => theme.name === activeName)) applyCustomEditorTheme(activeName);
+    else if (!isBuiltinThemeName(activeName)) {
+      customEditorTheme = null;
+      applyBuiltinEditorTheme(resolveEditorThemeNameForAppearance(DEFAULT_EDITOR_THEME_NAME, settings.theme === 'system' ? undefined : settings.theme));
+    }
     applySettings();
   } else if (event.key === editorThemeNameKey) {
     editorThemeName = event.newValue || '';
@@ -2317,6 +2407,8 @@ function applySettings() {
   syncIndentControls();
   $('#theme-select').value = settings.theme;
   syncBuiltinThemeSelect();
+  syncCustomThemeEditor();
+  $('#custom-theme-count').textContent = `自定义主题 ${customEditorThemes.length}/${MAX_CUSTOM_EDITOR_THEMES}`;
   $('#cot-theme-status').textContent = `编辑器：${currentEditorThemeName()}`;
   $('#clear-cot-theme').disabled = currentEditorThemeName() === DEFAULT_EDITOR_THEME_NAME
     || currentEditorThemeName() === resolveEditorThemeNameForAppearance(DEFAULT_EDITOR_THEME_NAME, settings.theme === 'system' ? undefined : settings.theme);
@@ -2427,10 +2519,9 @@ async function importCotEditorTheme() {
     if (!imported) return;
     const normalized = normalizeStoredCotTheme(imported);
     if (!normalized) throw new Error('主题文件没有可用的颜色定义。');
-    customEditorTheme = normalized;
-    editorThemeName = normalized.name;
-    localStorage.setItem(cotEditorThemeKey, JSON.stringify(normalized));
-    try { localStorage.setItem(editorThemeNameKey, normalized.name); } catch { /* storage may be unavailable */ }
+    customEditorThemes = upsertCustomEditorTheme(customEditorThemes, normalized, normalizeStoredCotTheme, builtinThemeNames());
+    persistCustomEditorThemes();
+    if (!applyCustomEditorTheme(normalized.name)) throw new Error('主题无法保存或激活。');
     applySettings();
     showToast(`已导入主题：${normalized.name}`);
   } catch (error) { showToast(`主题导入失败：${error.message || '请检查文件格式'}`); }
@@ -2611,6 +2702,75 @@ function handleSyntaxPackageDrop(result = {}) {
     const normalized = registerImportedCotEditorSyntaxes(result.packages, { rejectOverflow: true });
     showToast(importedCotSyntaxToast(normalized, { dragged: true }));
   } catch (error) { showToast(`语法拖放导入失败：${error.message || '请检查文件格式'}`); }
+}
+
+function persistActiveCustomEditorTheme() {
+  const active = customEditorThemes.find(theme => theme.name === editorThemeName);
+  if (!active) return false;
+  customEditorTheme = normalizeStoredCotTheme(active);
+  if (!customEditorTheme) return false;
+  try {
+    localStorage.setItem(cotEditorThemeKey, JSON.stringify(customEditorTheme));
+    localStorage.setItem(editorThemeNameKey, editorThemeName);
+  } catch { showToast('主题更改无法保存到本机设置。'); }
+  applySettings();
+  return true;
+}
+
+function renameActiveCustomEditorTheme() {
+  const oldName = currentEditorThemeName();
+  const requestedName = $('#custom-theme-name').value.replace(/[\u0000-\u001f\u007f]/gu, '').trim().slice(0, 100);
+  try {
+    customEditorThemes = renameCustomEditorTheme(customEditorThemes, oldName, requestedName, normalizeStoredCotTheme, builtinThemeNames());
+    editorThemeName = customEditorThemes.find(theme => theme.name.toLocaleLowerCase('en-US') === requestedName.toLocaleLowerCase('en-US')).name;
+    persistCustomEditorThemes();
+    persistActiveCustomEditorTheme();
+    showToast(`已重命名主题：${editorThemeName}`);
+  } catch (error) {
+    showToast(error.message || '无法重命名主题。');
+    $('#custom-theme-name').focus();
+  }
+}
+
+function deleteActiveCustomEditorTheme() {
+  const name = currentEditorThemeName();
+  if (!customEditorThemes.some(theme => theme.name === name)) return;
+  if (!window.confirm(`删除自定义主题“${name}”？`)) return;
+  try {
+    customEditorThemes = removeCustomEditorTheme(customEditorThemes, name, normalizeStoredCotTheme, builtinThemeNames());
+    persistCustomEditorThemes();
+    customEditorTheme = null;
+    editorThemeName = '';
+    localStorage.removeItem(cotEditorThemeKey);
+    localStorage.removeItem(editorThemeNameKey);
+    applyBuiltinEditorTheme(resolveEditorThemeNameForAppearance(DEFAULT_EDITOR_THEME_NAME, settings.theme === 'system' ? undefined : settings.theme));
+    applySettings();
+    showToast(`已删除主题：${name}`);
+  } catch (error) { showToast(error.message || '无法删除主题。'); }
+}
+
+function handleCustomThemeColorChange(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  const style = target.dataset.themeStyle;
+  const systemRole = target.dataset.themeSystemRole;
+  if (!style && !systemRole) return;
+  const theme = customEditorThemes.find(item => item.name === currentEditorThemeName());
+  if (!theme) return;
+  const updated = { ...theme, styles: { ...theme.styles }, systemSettings: [...theme.systemSettings] };
+  if (style) {
+    const prior = updated.styles[style] || '';
+    updated.styles[style] = `${target.value.toLowerCase()}${prior.length === 9 ? prior.slice(7) : ''}`;
+  } else {
+    updated.systemSettings = target.checked
+      ? [...new Set([...updated.systemSettings, systemRole])]
+      : updated.systemSettings.filter(role => role !== systemRole);
+  }
+  try {
+    customEditorThemes = upsertCustomEditorTheme(customEditorThemes, updated, normalizeStoredCotTheme, builtinThemeNames());
+    persistCustomEditorThemes();
+    persistActiveCustomEditorTheme();
+  } catch (error) { showToast(error.message || '无法应用主题颜色。'); }
 }
 
 function clearCotEditorTheme() {
@@ -7137,9 +7297,11 @@ function registerEvents() {
   });
   $('#theme-select').addEventListener('change', event => setTheme(event.target.value));
   $('#builtin-theme-select').addEventListener('change', event => {
-    const name = event.target.value;
-    if (name === '__custom__') return;
-    if (!applyBuiltinEditorTheme(name)) { showToast('无法应用所选主题。'); return; }
+    const value = event.target.value;
+    const isCustom = value.startsWith('custom:');
+    const name = isCustom ? value.slice('custom:'.length) : value.slice('builtin:'.length);
+    const applied = isCustom ? applyCustomEditorTheme(name) : applyBuiltinEditorTheme(name);
+    if (!applied) { showToast('无法应用所选主题。'); applySettings(); return; }
     applySettings();
     showToast(`已应用编辑器主题：${name}`);
   });
@@ -7313,6 +7475,9 @@ function registerEvents() {
   $('#split-orientation-setting').addEventListener('change', event => { settings.splitEditorsVertically = event.target.checked; persistSettings(); applySettings(); });
   $('#import-cot-theme').addEventListener('click', importCotEditorTheme);
   $('#clear-cot-theme').addEventListener('click', clearCotEditorTheme);
+  $('#custom-theme-rename').addEventListener('click', renameActiveCustomEditorTheme);
+  $('#custom-theme-delete').addEventListener('click', deleteActiveCustomEditorTheme);
+  $('#custom-theme-colors').addEventListener('change', handleCustomThemeColorChange);
   $('#open-script-folder').addEventListener('click', async () => {
     if (!window.cotedit?.isDesktop) { showToast('脚本文件夹仅在桌面版可用'); return; }
     try { await window.cotedit.openScriptsFolder(); await refreshScriptStatus(); }

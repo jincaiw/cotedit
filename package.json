@@ -1,6 +1,6 @@
 {
   "name": "cotedit-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An independent cross-platform text and source-code editor inspired by CotEditor.",
   "author": "CotEdit contributors",
   "homepage": "https://github.com/jincaiw/cotedit",
@@ -20,6 +20,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test test/*.test.js",
     "test:ui": "npm run build && node --test test/electron-ui-smoke.cjs",
+    "test:ui:themes": "npm run build && node --test --test-name-pattern='Electron custom editor themes' test/electron-ui-smoke.cjs",
     "desktop": "npm run build && electron .",
     "desktop:dev": "electron .",
     "package:linux": "npm run build && electron-builder --linux AppImage deb --publish never",
@@ -72,6 +73,7 @@
       "lib/file-drop-defaults.json",
       "lib/settings.js",
       "lib/settings-file.js",
+      "lib/custom-editor-themes.js",
       "lib/multiple-replace.js",
       "lib/shortcuts.json",
       "lib/icu-regexp.js",

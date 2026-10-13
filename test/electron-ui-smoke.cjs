@@ -1250,3 +1250,91 @@ test('Electron manages syntax-scoped command snippets and inserts selection/curs
     throw error;
   }
 });
+
+test('Electron custom editor themes can be selected, renamed, edited, and deleted', { timeout: uiTimeoutMs }, async t => {
+  const userData = await mkdtemp(path.join(os.tmpdir(), 'cotedit-theme-test-'));
+  const child = spawn(electronExecutable, [
+    applicationEntry, '--no-sandbox', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${userData}`
+  ], { cwd: projectRoot, env: { ...process.env, ELECTRON_DISABLE_SANDBOX: '1', COTEDIT_TEST_USER_DATA_DIR: userData }, stdio: ['ignore', 'ignore', 'pipe'], detached: process.platform !== 'win32' });
+  let stderr = '';
+  child.stderr.on('data', chunk => { stderr = `${stderr}${chunk}`.slice(-5000); });
+  let client;
+  t.after(async () => {
+    client?.close();
+    signalProcessTree(child, 'SIGTERM');
+    await Promise.race([
+      child.exitCode === null ? new Promise(resolve => child.once('exit', resolve)) : Promise.resolve(),
+      delay(2500)
+    ]);
+    signalProcessTree(child, 'SIGKILL');
+    if (child.exitCode === null) await Promise.race([new Promise(resolve => child.once('exit', resolve)), delay(500)]);
+    await rm(userData, { recursive: true, force: true });
+  });
+
+  let port;
+  try {
+    const portFile = path.join(userData, 'DevToolsActivePort');
+    await waitFor(async () => {
+      try {
+        const value = (await readFile(portFile, 'utf8')).split('\n')[0];
+        if (/^\d+$/.test(value)) { port = value; return true; }
+      } catch {}
+      if (child.exitCode !== null) throw new Error(`Electron exited with ${child.exitCode}: ${stderr}`);
+      return false;
+    }, 'theme test Electron DevTools port', 30000);
+    const target = await waitFor(async () => {
+      try {
+        const pages = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+        return pages.find(page => page.type === 'page') || false;
+      } catch { return false; }
+    }, 'theme test Electron page');
+    const socket = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+      socket.addEventListener('open', resolve, { once: true });
+      socket.addEventListener('error', reject, { once: true });
+    });
+    client = new DevToolsClient(socket);
+    await waitFor(async () => client.evaluate(`document.querySelector('#app-version')?.textContent === ${JSON.stringify(applicationVersion)}`), 'theme test renderer readiness');
+
+    const customTheme = {
+      format: 'cottheme', name: 'UI Test Theme', styles: {
+        text: '#f0f0f0', background: '#202020', selection: '#456789', lineHighlight: '#303030',
+        invisibles: '#777777', insertionPoint: '#ffffff', highlight: '#88aa44', keywords: '#cc88ee', strings: '#aaddaa'
+      }, metadata: {}, systemSettings: ['selection']
+    };
+    await client.evaluate(`(() => {
+      localStorage.setItem('cotedit.cot-theme.v1', ${JSON.stringify(JSON.stringify(customTheme))});
+      localStorage.setItem('cotedit.cot-themes.v1', ${JSON.stringify(JSON.stringify([customTheme]))});
+      localStorage.setItem('cotedit.editor-theme-name.v1', 'UI Test Theme');
+      location.reload();
+      return true;
+    })()`);
+    await waitFor(async () => client.evaluate(`document.querySelector('#builtin-theme-select')?.value === 'custom:UI Test Theme'`), 'custom theme is loaded into the theme chooser');
+    await client.evaluate('document.querySelector("#settings-toggle").click(); true');
+    await waitFor(async () => client.evaluate('document.querySelector("#custom-theme-controls")?.hidden === false'), 'custom theme editor is exposed');
+    assert.equal(await client.evaluate('getComputedStyle(document.documentElement).getPropertyValue("--editor-theme-background").trim()'), '#202020');
+
+    await client.evaluate(`(() => { const select = document.querySelector('#builtin-theme-select'); select.value = 'builtin:Classic'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    assert.equal(await client.evaluate('localStorage.getItem("cotedit.editor-theme-name.v1")'), 'Classic');
+    await client.evaluate(`(() => { const select = document.querySelector('#builtin-theme-select'); select.value = 'custom:UI Test Theme'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    assert.equal(await client.evaluate('localStorage.getItem("cotedit.editor-theme-name.v1")'), 'UI Test Theme');
+
+    await client.evaluate(`(() => { document.querySelector('#custom-theme-name').value = 'Renamed Theme'; document.querySelector('#custom-theme-rename').click(); return true; })()`);
+    assert.equal(await client.evaluate('localStorage.getItem("cotedit.editor-theme-name.v1")'), 'Renamed Theme');
+    assert.equal(await client.evaluate('JSON.parse(localStorage.getItem("cotedit.cot-themes.v1"))[0].name'), 'Renamed Theme');
+
+    await client.evaluate(`(() => { const input = document.querySelector('[data-theme-style="text"]'); input.value = '#abcdef'; input.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    assert.equal(await client.evaluate('JSON.parse(localStorage.getItem("cotedit.cot-themes.v1"))[0].styles.text'), '#abcdef');
+    assert.equal(await client.evaluate('getComputedStyle(document.documentElement).getPropertyValue("--editor-theme-text").trim()'), '#abcdef');
+    await client.evaluate(`(() => { const checkbox = document.querySelector('[data-theme-system-role="selection"]'); checkbox.checked = false; checkbox.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    assert.deepEqual(await client.evaluate('JSON.parse(localStorage.getItem("cotedit.cot-themes.v1"))[0].systemSettings'), []);
+
+    await client.evaluate('window.confirm = () => true; document.querySelector("#custom-theme-delete").click(); true');
+    await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.cot-themes.v1")).length === 0'), 'custom theme is deleted');
+    assert.equal(await client.evaluate('document.querySelector("#builtin-theme-select").value'), 'builtin:Anura');
+    assert.equal(await client.evaluate('document.querySelector("#custom-theme-controls").hidden'), true);
+  } catch (error) {
+    if (stderr) error.message += `\nElectron stderr:\n${stderr}`;
+    throw error;
+  }
+});

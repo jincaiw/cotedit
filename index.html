@@ -237,8 +237,13 @@
         <div class="setting-tools"><span>调整工具栏项目与顺序</span><button id="toolbar-customize-open" type="button">自定义…</button></div>
         <label class="setting-row"><span>垂直堆叠分屏编辑器</span><input type="checkbox" id="split-orientation-setting" /></label>
         <label class="setting-row"><span>界面外观</span><select id="theme-select"><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></label>
-        <label class="setting-row"><span>编辑器主题</span><select id="builtin-theme-select" aria-label="选择内置编辑器主题"></select></label>
+        <label class="setting-row"><span>编辑器主题</span><select id="builtin-theme-select" aria-label="选择编辑器主题"></select></label>
         <div class="setting-tools"><span id="cot-theme-status" aria-live="polite">未加载编辑器主题</span><div><button id="import-cot-theme">导入 .cottheme…</button><button id="clear-cot-theme" disabled>清除</button></div></div>
+        <div id="custom-theme-controls" class="custom-theme-controls" hidden>
+          <div class="custom-theme-name-tools"><label for="custom-theme-name">自定义主题名称</label><input id="custom-theme-name" type="text" maxlength="100" autocomplete="off"><div><button id="custom-theme-rename" type="button">重命名</button><button id="custom-theme-delete" type="button">删除</button></div></div>
+          <div id="custom-theme-colors" class="custom-theme-colors" role="group" aria-label="自定义主题颜色"></div>
+          <span id="custom-theme-count" class="custom-theme-count" aria-live="polite"></span>
+        </div>
         <div class="setting-tools"><span id="script-status" aria-live="polite">桌面脚本仅在应用内可用</span><button id="open-script-folder">脚本文件夹…</button></div>
         <div class="setting-tools"><span>快捷键可以按需要重新分配</span><button id="shortcut-settings-open" type="button">设置快捷键…</button></div>
         <div class="setting-tools"><span>管理格式菜单中的语法选项</span><button id="syntax-menu-settings" type="button">自定义语法菜单…</button></div>
