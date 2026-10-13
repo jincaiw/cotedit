@@ -279,7 +279,7 @@ test('folder search returns relative paths, line numbers and respects hidden/ign
   const result = await searchDirectory(root, { query: 'needle', caseSensitive: false });
   assert.equal(result.root, root);
   assert.equal(result.scanned, 1);
-  assert.deepEqual(result.results.map(hit => [hit.relativePath, hit.line, hit.preview]), [['src/note.txt', 2, 'Needle here']]);
+  assert.deepEqual(result.results.map(hit => [hit.relativePath, hit.line, hit.preview]), [[path.join('src', 'note.txt'), 2, 'Needle here']]);
   await assert.rejects(previewFileInRoot(root, path.join(outside, 'secret.txt')), /超出已选文件夹范围/);
   await assert.rejects(previewFileInRoot(root, path.join(root, 'outside-link', 'secret.txt')), /符号链接离开/);
   await assert.rejects(resolveEditableFileInRoot(root, path.join(outside, 'secret.txt')), /超出已选文件夹范围/);

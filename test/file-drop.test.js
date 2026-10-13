@@ -107,7 +107,7 @@ test('HTML and CSS file drops use syntax defaults including CotEditor image dime
   const directory = await temporaryDirectory(t);
   const imagePath = path.join(directory, 'logo.png');
   await writeFile(imagePath, pngHeader(32, 24));
-  assert.equal((await formatDroppedFilePaths([imagePath], path.join(directory, 'page.html'), 'html', 'linux')).text,
+  assert.equal((await formatDroppedFilePaths([imagePath], path.join(directory, 'page.html'), 'html', process.platform)).text,
     '<img src="logo.png" alt="logo" title="logo" width="32" height="24" />');
   assert.equal((await formatDroppedFilePaths(['/project/scripts/app.JS'], '/project/page.html', 'html', 'linux')).text,
     '<script type="text/javascript" src="scripts/app.JS"></script>');

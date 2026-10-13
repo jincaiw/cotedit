@@ -94,13 +94,14 @@ function parseDesktopEntry(contents, locale = 'en-US') {
 }
 
 function applicationDirectories(env = process.env, home = os.homedir()) {
-  const userData = typeof env.XDG_DATA_HOME === 'string' && path.isAbsolute(env.XDG_DATA_HOME)
+  const linuxPath = path.posix;
+  const userData = typeof env.XDG_DATA_HOME === 'string' && linuxPath.isAbsolute(env.XDG_DATA_HOME)
     ? env.XDG_DATA_HOME
-    : path.join(home, '.local', 'share');
+    : linuxPath.join(home, '.local', 'share');
   const systemData = typeof env.XDG_DATA_DIRS === 'string' && env.XDG_DATA_DIRS.trim()
-    ? env.XDG_DATA_DIRS.split(path.delimiter).filter(item => path.isAbsolute(item))
+    ? env.XDG_DATA_DIRS.split(linuxPath.delimiter).filter(item => linuxPath.isAbsolute(item))
     : ['/usr/local/share', '/usr/share'];
-  return [...new Set([userData, ...systemData].map(directory => path.join(path.resolve(directory), 'applications')))];
+  return [...new Set([userData, ...systemData].map(directory => linuxPath.join(linuxPath.resolve(directory), 'applications')))];
 }
 
 async function buildDesktopFileIndex(directories) {

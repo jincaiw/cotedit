@@ -127,7 +127,9 @@ test('rejects an invalid selected application or a preview path outside the root
   let calls = 0;
   const spawnProcess = () => { calls++; throw new Error('should not launch'); };
 
-  await assert.rejects(openFileWithApplicationInRoot(root, filePath, nonExecutable, { platform: 'linux', spawnProcess }), /不可执行/);
+  if (process.platform !== 'win32') {
+    await assert.rejects(openFileWithApplicationInRoot(root, filePath, nonExecutable, { platform: 'linux', spawnProcess }), /不可执行/);
+  }
   await assert.rejects(openFileWithApplicationInRoot(root, outsideFile, nonExecutable, { platform: 'linux', spawnProcess }), /超出已选文件夹范围/);
   await assert.rejects(openFileWithApplicationInRoot(root, filePath, nonExecutable, { platform: 'win32', spawnProcess }), /Windows 可执行应用/);
   assert.equal(calls, 0);
