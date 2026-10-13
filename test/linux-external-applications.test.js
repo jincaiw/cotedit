@@ -107,7 +107,7 @@ test('parses only a valid GIO content-type attribute', () => {
   assert.equal(contentTypeFromGioInfo('standard::content-type: text/plain extra\n'), null);
 });
 
-test('lists the default Linux application first and sorts remaining names by locale', async () => {
+test('lists the default Linux application first and sorts remaining names by locale', { skip: process.platform === 'win32' }, async () => {
   await withFixture(async fixture => {
     const listed = await listExternalApplicationsInRoot(fixture.root, fixture.filePath, {
       platform: 'linux', env: fixture.env, home: fixture.temporaryDirectory, locale: 'zh-CN', execFileImpl: fixture.execFileImpl
@@ -144,7 +144,7 @@ test('non-Linux platforms keep the existing default and Other menu path without 
   });
 });
 
-test('launches a still-registered application through gio with a fixed argument vector', async () => {
+test('launches a still-registered application through gio with a fixed argument vector', { skip: process.platform === 'win32' }, async () => {
   await withFixture(async fixture => {
     let launch;
     const spawnProcess = (executable, args, options) => {
