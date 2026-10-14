@@ -51,6 +51,7 @@
 - [x] 发布验收：CotEdit 1.0.3 已完成 `npm test` 878/878、桌面 UI smoke 4/4 与本机构建；`v1.0.3` 的 GitHub Actions 三平台单测、构建和安装包任务全部通过，并发布 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。流程：[Actions run 38408446933](https://github.com/jincaiw/cotedit/actions/runs/38408446933)，[Release v1.0.3](https://github.com/jincaiw/cotedit/releases/tag/v1.0.3)。
 - [x] 发布验收：CotEdit 1.0.4 已完成 `npm test` 885/885、`npm run test:ui` 4/4、生产构建及变更 JavaScript 语法检查；`v1.0.4` 的 GitHub Actions 三平台单测、构建与打包全部成功，发布 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。流程：[Actions run 38413922039](https://github.com/jincaiw/cotedit/actions/runs/38413922039)，[Release v1.0.4](https://github.com/jincaiw/cotedit/releases/tag/v1.0.4)。
 - [x] 发布验收：CotEdit 1.0.5 已完成 `npm test` 888/888、`npm run test:ui` 4/4、生产构建及变更 JavaScript 语法检查；`v1.0.5` 的 GitHub Actions 三平台单测、构建与打包全部成功，发布 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。流程：[Actions run 38417349064](https://github.com/jincaiw/cotedit/actions/runs/38417349064)，[Release v1.0.5](https://github.com/jincaiw/cotedit/releases/tag/v1.0.5)。
+- [x] 发布验收：CotEdit 1.0.6 已完成 `npm test` 891/891、`npm run test:ui` 4/4、生产构建及变更 JavaScript 语法检查；`v1.0.6` 的 GitHub Actions 三平台单测、构建与打包全部成功，发布 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。流程：[Actions run 38487797749](https://github.com/jincaiw/cotedit/actions/runs/38487797749)，[Release v1.0.6](https://github.com/jincaiw/cotedit/releases/tag/v1.0.6)。
 
 ## 当前限制
 
