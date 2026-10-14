@@ -34,7 +34,7 @@
 | 最近文稿/会话 | GPUI 配置目录 JSON；File > Open Recent 菜单动态列出最近文稿，按窗口恢复 | 已实现首版；未保存文本以 500ms 延迟写入/恢复，并保存光标行列；纯格式选项、滚动位置及实时光标移动尚未持久化 |
 | 编辑/查找 | GPUI Kit Editor、Tree-sitter 语言映射、内置 Undo/Redo、文本查找/替换和搜索面板 | 已接入基础能力；替换可按当前命中或全部执行，CotEditor 搜索语义未核对 |
 | File/Edit/Find/Text/View/Window 菜单 | `Menu` + `Action`，先绑定 keymap 再注册菜单 | 已接入可用子集；File > Open Recent 按当前文稿历史动态构建；macOS 应用菜单包含 Services、Hide、Hide Others、Show CotEdit；有查找前/后项、About、Window Minimize/Zoom；View 勾选态跟随活动窗口 |
-| 快捷键 | `secondary-*` 映射 Command/Control；新建文稿 Cmd+N、新窗口 Cmd+Shift+N、新标签 Cmd+T；查找前/后项 Cmd+G / Cmd+Shift+G；重置语法分析 Cmd+R；使用选区查找/替换 Cmd+E / Cmd+Shift+E；标签切换 Cmd+Shift+[ / ] 并保留 Ctrl+Tab | 已配置，实体键盘和系统菜单展示待实测 |
+| 快捷键 | `secondary-*` 映射 Command/Control；新建文稿 Cmd+N、新窗口 Cmd+Shift+N、新标签 Cmd+T；查找前/后项 Cmd+G / Cmd+Shift+G；重置语法分析 Cmd+R；使用选区查找/替换 Cmd+E / Cmd+Shift+E；标签切换 Cmd+Shift+[ / ] 并保留 Ctrl+Tab | 已配置；菜单中快捷键显示已在 macOS 实机核验，实体键盘操作和 Windows/Linux 映射待验收 |
 | Dirty 状态 | 保存快照与当前文本/格式比较，显示标签/窗口编辑状态 | 已实现；关闭未保存标签或窗口会先确认丢弃 |
 | 状态栏 | 活动文稿、编码、默认/混合行尾和光标位置 | 已实现基本显示；与 CotEditor 的选择器和编码警告入口尚有差异 |
 
