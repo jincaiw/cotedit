@@ -90,7 +90,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 ## 本轮验证记录
 
 - `cargo fmt --manifest-path app/Cargo.toml --check`、macOS arm64 `cargo check`、macOS x86_64 `cargo check` 与 `git diff --check` 通过。
-- GitHub Actions 运行 `38564488773`、`38569656863`、`38570355701`、`38570702357`、`38572107193`、`38572426770` 的 macOS、Windows、Linux 原生 runner 均完成 `cargo build --release --locked` 并上传二进制 artifact；后三次分别验证 Help 菜单、Syntax 选择功能、CotEditor Format 菜单顺序。macOS arm64 artifact 已启动并显示 GPUI 窗口；本机 debug 构建截屏核验应用菜单名、File 菜单命令和窗口/标签/编辑区/状态栏。本批选区查找/替换已通过本机格式与编译检查，三平台 CI 待验证。
+- GitHub Actions 运行 `38564488773`、`38569656863`、`38570355701`、`38570702357`、`38572107193`、`38572426770`、`38573139890` 的 macOS、Windows、Linux 原生 runner 均完成 `cargo build --release --locked` 并上传二进制 artifact；后三次分别验证 Syntax 选择功能、CotEditor Format 菜单顺序、选区查找/替换快捷键。macOS arm64 artifact 已启动并显示 GPUI 窗口；本机 debug 构建截屏核验应用菜单名、File 菜单命令和窗口/标签/编辑区/状态栏。本批选区查找/替换已通过本机格式检查、编译检查和三平台原生 CI 构建。
 - 本机 Windows x86_64 交叉检查在 `gpui-pre` 构建脚本因缺少 `llvm-rc` 中止；Linux x86_64 因缺少 `x86_64-linux-gnu-gcc` 中止。CI 已在原生 runner 编译通过，仍未对 Windows/Linux 实际窗口、菜单、输入法和文件操作进行运行验收。
 
 ## 验收原则
