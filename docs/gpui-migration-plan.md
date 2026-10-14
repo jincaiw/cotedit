@@ -85,13 +85,13 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码与默认行尾勾选态、About、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Help/Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码与默认行尾勾选态、About、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Help/Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮验证记录
 
 - `cargo fmt --manifest-path app/Cargo.toml --check`、macOS arm64 `cargo check`、macOS x86_64 `cargo check` 与 `git diff --check` 通过。
-- Windows x86_64 交叉检查在依赖 `gpui-pre` 的构建脚本阶段因环境缺少 `llvm-rc` 中止；Linux x86_64 交叉检查因环境缺少 `x86_64-linux-gnu-gcc` 中止。两者均未达到应用 crate 的编译阶段，不代表目标平台源码已通过构建。
-- 未运行测试或桌面窗口；三平台实机行为仍待验收。
+- GitHub Actions 运行 `38564488773` 的 macOS、Windows、Linux 原生 runner 均完成 `cargo build --release --locked` 并上传二进制 artifact。macOS arm64 artifact 已启动并显示首个 GPUI 窗口；本机 debug 构建已截屏核验应用菜单名为 `CotEdit`，File 菜单常用命令可用。执行目标已改名为 `CotEdit`，workflow artifact 路径也已同步；新目标名的 Windows/Linux 重建等待本次改动推送后的 CI 复验。
+- 本机 Windows x86_64 交叉检查在 `gpui-pre` 构建脚本因缺少 `llvm-rc` 中止；Linux x86_64 因缺少 `x86_64-linux-gnu-gcc` 中止。CI 已在原生 runner 编译通过，仍未对 Windows/Linux 实际窗口、菜单、输入法和文件操作进行运行验收。
 
 ## 验收原则
 

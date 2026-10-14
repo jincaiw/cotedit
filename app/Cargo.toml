@@ -2,7 +2,12 @@
 name = "cotedit-gpui"
 version = "1.0.7"
 edition = "2024"
+autobins = false
 description = "A cross-platform native text editor built with GPUI Kit"
+
+[[bin]]
+name = "CotEdit"
+path = "src/main.rs"
 
 [dependencies]
 atomic-write-file = "0.3"

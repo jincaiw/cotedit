@@ -67,6 +67,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cotedit-gpui-${{ matrix.platform }}
-          path: app/target/release/cotedit-gpui*
+          path: app/target/release/CotEdit*
           if-no-files-found: error
           retention-days: 14

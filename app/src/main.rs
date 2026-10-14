@@ -1444,6 +1444,7 @@ fn build_workspace_root(
 
 fn main() {
     gpui_kit::application().with_assets(Assets).run(|cx| {
+        cx.set_app_identity("com.cotedit.CotEdit", "CotEdit");
         gpui_kit::init(cx);
         install_commands(cx);
         let session_file = session_file_path();
