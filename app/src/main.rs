@@ -203,6 +203,8 @@ actions!(
         MinimizeWindow,
         ZoomWindow,
         About,
+        OpenHelp,
+        ReportIssue,
         HideApplication,
         HideOtherApplications,
         ShowApplication,
@@ -600,6 +602,14 @@ impl CotEdit {
     fn new_tab(&mut self, _: &NewTab, window: &mut Window, cx: &mut Context<Self>) {
         self.add_document(None, DecodedDocument::default(), None, window, cx);
         self.persist_session(cx);
+    }
+
+    fn open_help(&mut self, _: &OpenHelp, _: &mut Window, cx: &mut Context<Self>) {
+        cx.open_url("https://github.com/jincaiw/cotedit#readme");
+    }
+
+    fn report_issue(&mut self, _: &ReportIssue, _: &mut Window, cx: &mut Context<Self>) {
+        cx.open_url("https://github.com/jincaiw/cotedit/issues/new");
     }
 
     fn open_recent_document(
@@ -1321,6 +1331,8 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::minimize_window))
             .on_action(cx.listener(Self::zoom_window))
             .on_action(cx.listener(Self::about))
+            .on_action(cx.listener(Self::open_help))
+            .on_action(cx.listener(Self::report_issue))
             .on_action(cx.listener(Self::hide_application))
             .on_action(cx.listener(Self::hide_other_applications))
             .on_action(cx.listener(Self::show_application))
@@ -1505,6 +1517,10 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::separator(),
             MenuItem::action("Minimize", MinimizeWindow),
             MenuItem::action("Zoom", ZoomWindow),
+        ]),
+        Menu::new("Help").items([
+            MenuItem::action("CotEdit Help", OpenHelp),
+            MenuItem::action("Report an Issue…", ReportIssue),
         ]),
     ]);
 }
