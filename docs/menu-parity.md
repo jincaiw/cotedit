@@ -1,6 +1,8 @@
-# CotEditor 菜单与快捷键差异清单
+# CotEditor 菜单与快捷键差异清单（历史 Electron 版）
 
-对照基线：CotEditor 7.1.2 稳定版；当前 `main` 快照 `f90e70a644d968e33d48cc6b8258e72a06957f32`。上游菜单依据 [`Main.storyboard`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Storyboards/Base.lproj/Main.storyboard) 提取，快捷键以 `keyEquivalent` 为依据；该属性只证明静态默认值，不证明原生执行效果。CotEdit 当前菜单入口见 `electron/main.cjs`，动作登记见 `electron/preload.cjs`，快捷键登记见 `lib/shortcuts.json`。
+> 历史资料：本文记录 Electron 1.0.7 的菜单入口与快捷键实现。Electron 源码已移除；当前 GPUI 菜单与快捷键状态见 [GPUI 对齐矩阵](gpui-parity-matrix.md)。
+
+对照基线：CotEditor 7.1.2 稳定版；当前 `main` 快照 `f90e70a644d968e33d48cc6b8258e72a06957f32`。上游菜单依据 [`Main.storyboard`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Storyboards/Base.lproj/Main.storyboard) 提取，快捷键以 `keyEquivalent` 为依据；该属性只证明静态默认值，不证明原生执行效果。本文的 `electron/main.cjs`、`electron/preload.cjs` 与 `lib/shortcuts.json` 引用均指向旧版源码历史，当前树中已不存在。
 
 | 上游菜单区 | CotEdit 当前情况 | 主要差异/下一步 |
 |---|---|---|

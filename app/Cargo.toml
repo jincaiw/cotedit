@@ -1,8 +1,9 @@
 [package]
-name = "cotedit-gpui"
-version = "1.0.7"
+name = "cotedit"
+version = "0.1.0"
 edition = "2024"
 autobins = false
+default-run = "CotEdit"
 description = "A cross-platform native text editor built with GPUI Kit"
 
 [[bin]]

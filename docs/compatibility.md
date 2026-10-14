@@ -1,8 +1,10 @@
-# CotEdit 与 CotEditor 兼容性
+# CotEdit Electron 版历史兼容性记录
 
-CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 跨平台实现。界面、菜单、快捷键和编辑操作按上游逐项核对；当前稳定基线为 CotEditor 7.1.2，上游 `main` 快照为 2026-10-13 的 `f90e70a644d968e33d48cc6b8258e72a06957f32`。源码级比对仍在推进，本页注明近似行为、缺项、平台实现边界和验证状态。Mode 字段、默认值与当前支持状态另见[Mode 选项逐项矩阵](mode-options-parity.md)，执行顺序见[对齐实施计划](parity-plan.md)。
+> 历史资料：Electron/CodeMirror 源码已从当前分支删除。本文描述 CotEdit 1.0.7 及此前实现，仅用于提取迁移需求，不代表 GPUI 版本已实现或验证；当前状态以 [GPUI 对齐矩阵](gpui-parity-matrix.md) 为准。
 
-本页保留按日期追加的历史核对记录；出现 CotEditor 7.1.1 的引用时，该版本通常是该条行为的历史证据，并不覆盖本页开头的当前基线。历史段落中的 CotEdit 版本、测试计数、工作树状态和“未发行”表述只对其记录日期有效；当前版本及验收结果以 [README 版本记录](../README.md)、[实施计划](parity-plan.md)和本页“功能对应”表为准。
+CotEditor 是 Swift/Cocoa 原生 macOS 应用；历史 CotEdit 使用 Electron/CodeMirror。其功能曾按上游逐项核对；对照基线为 CotEditor 7.1.2 与上游 `main` 快照 `f90e70a644d968e33d48cc6b8258e72a06957f32`。本页保留历史行为、差异和测试证据。Mode 字段历史核对见[Mode 选项矩阵](mode-options-parity.md)，旧执行计划见[历史对齐计划](parity-plan.md)。
+
+本页保留按日期追加的历史核对记录；出现 CotEditor 7.1.1 的引用时，该版本通常是该条行为的历史证据，并不覆盖本页开头的 CotEditor 基线。历史段落中的 CotEdit 版本、测试计数、工作树状态和发行表述只对其记录日期有效；当前 GPUI 状态以 [GPUI 功能矩阵](gpui-parity-matrix.md)、[GPUI 迁移计划](gpui-migration-plan.md)和 [README](../README.md) 为准。
 
 
 **CotEdit 1.0.7 增量（Mode `indentOptions.expandsTab`）：**依据 CotEditor 7.1.2 的 `ModeOptions.IndentOptions` 与 Mode 设置视图，CotEdit 增加逐语法“跟随模式默认/展开为空格/插入制表符”，并随现有设置文件导入/导出保存。显式语法值覆盖文稿缩进样式检测；选择“跟随模式默认”时，文稿检测结果优先于全局 `autoExpandTab`。Format > Tab Width 菜单有活动文稿时切换该语法覆写，没有文稿时切换全局偏好；设置面板另有全局默认复选框。展开型软 Tab 仍按 CotEdit 的全局 Tab 显示宽度计算；CotEditor Mode 的 `width` 会与 `expandsTab` 一同作用于文本视图，CotEdit 仍保留独立的逐语法缩进宽度和全局显示宽度，因此两项组合尚未完全等价。`npm test` 893/893、Electron UI smoke 4/4 和生产构建通过；构建报告 bundle 超过 500 kB 的既有提示。改动依据：[ModeOptions.swift](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift) 与 [ModeSettingsView.swift](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Settings%20Window/Panes/ModeSettingsView.swift)。细节见 [Mode 选项矩阵](mode-options-parity.md)。

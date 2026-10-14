@@ -4,12 +4,12 @@
 
 以 CotEditor 7.1.2 发布版源码、storyboard、默认设置、帮助文档为功能基线；以 `longbridge/gpui-kit` 的 GPUI Kit 0.7.x 为跨平台桌面 UI 技术栈；参考 `sachithrrra/betternotepad` 的 Rust 应用组织、文稿实体、菜单/Action、GPUI 文本编辑器及会话保存实践。
 
-当前仓库已经有 Electron/CodeMirror 桌面应用和大量 CotEditor 对齐工作。本计划不移除或覆盖现有实现；`app/` 是新的 Rust 原生实现，旧应用继续作为行为说明、功能基线和可运行版本。逐域迁移后再决定是否切换默认发布入口。产品目标是尽量复现 CotEditor 的可移植功能与工作流，并在各平台采用惯用窗口/菜单行为。AppKit 专属服务无法在 Windows/Linux 字面复刻时，按平台能力实现等价结果或在兼容性矩阵中明确缺项；“完全一致”需通过逐项功能、交互、菜单、快捷键和平台实机验收证明，不能由单次构建推断。
+本仓库现以 `app/` 下 GPUI 应用作为唯一应用实现；Electron/CodeMirror 运行时代码、Node/npm 依赖与旧发布入口已删除，历史对齐记录仅供提取需求。CotEditor 上游源码、storyboard、默认设置和帮助仍是功能基线。逐项移植并进行平台验收的工作继续开放；功能差异与“完全一致”验收条件见矩阵，编译成功不代表界面或行为完全一致。
 
 ## 检查结论
 
 - CotEditor 7.1.2 是 Swift/Cocoa macOS 编辑器，功能入口分布于 `Document Window`、`Settings Window`、Inspector、Script/Mode/Theme/Snippet 管理、菜单 storyboard 和帮助资源。
-- 当前 CotEdit 已实现丰富的跨平台文本编辑、文件夹浏览、语法/主题子集、设置、检查器、快捷键、打印和恢复流程；它自身的 `docs/parity-plan.md`、`docs/menu-parity.md`、`docs/mode-options-parity.md` 记录了差异与平台边界。
+- 旧 Electron 1.0.7 的功能与测试记录保留于历史文档和 GitHub Release；Electron/CodeMirror 源码及 npm 发行依赖已从当前分支移除。
 - BetterNotepad 是 macOS Rust/GPUI Kit 应用，提供了可核对的 GPUI 文稿/标签、文件菜单、会话恢复、编辑器、状态栏和主题实例。它不是 CotEditor 的完整功能替代，也未作为跨平台实现的验收依据。
 - GPUI Kit 提供原生 GPUI `Editor` / `Textarea`、Action/key binding、菜单、Root、对话框、主题和窗口能力；逐功能迁移仍需建立文稿模型、编码/行尾、语法配置、设置持久化与平台适配。
 - 工作树起始状态为 `master`，已有 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容；迁移实施需保留这些既有文件，不清理或重写。
@@ -24,9 +24,9 @@
 | B. 文本编辑核心 | 补齐 CotEditor 高频文本命令 | 查找选项与命中导航、选择行/词、多光标、缩进配置、注释/行操作、Unicode 转换、剪贴板、撤销边界 | 每个命令明确选区、无选区、Undo 和菜单可用状态；没有对应 GPUI 能力时补 command handler |
 | C. 文稿与偏好 | 对齐文件生命周期和可配置行为 | 格式状态恢复、滚动/光标状态、自动保存恢复、Mode/缩进、编码与换行边界、字体/主题/设置页 | 持久化兼容、损坏文件恢复、大文稿性能与覆盖保护检查 |
 | D. CotEditor 专属能力 | 逐域迁移编辑器之外的工作流 | 大纲/折叠/补全、Inspector、文件夹浏览、片段/替换/语法包、打印/导出、辅助功能 | 每域有明确平台替代方案或被矩阵记录为未支持；检查文件系统边界和权限 |
-| E. 三平台交付 | 让 GPUI 成为可下载、可安装、可更新的独立发行物 | macOS/Windows/Linux 构建矩阵、依赖安装、应用图标/文件关联、版本号、签名/公证和 GitHub Release | 已配置独立 GPUI 原生 runner 构建工作流并上传二进制 CI artifacts，等待远程运行结果；三平台发行包构建成功并启动验收、安装器与 release workflow 接入后再发行；Electron 包继续可用 |
+| E. 三平台交付 | 让 GPUI 成为可下载、可安装、可更新的独立发行物 | macOS/Windows/Linux 构建矩阵、依赖安装、应用图标/文件关联、版本号、签名/公证和 GitHub Release | 原生 runner 构建及独立 GPUI 分发归档工作流已配置；仍缺完整安装器、文件关联、签名/公证、自动更新和运行验收；旧 Electron `v1.0.7` 资产保留在既有 GitHub Release |
 
-**当前优先批次：**继续补 A 阶段的动态菜单状态（当前编码、默认行尾、语法和视图选项）、应用菜单、最近文稿与窗口关闭工作流；随后把编辑命令从单体窗口文件中抽出并扩展文本操作。每批都先检查代码和目标源码，再编译，提交推送并更新矩阵。GPUI 与 Electron 目前是不同发行目标；E 阶段接入发行流水线前不将 GPUI 源码改动标称为已包含在 Electron 安装包中。
+**当前优先批次：**继续按 CotEditor 上游源代码和历史兼容性记录补齐 GPUI 菜单、编辑命令、设置与检查器；每批记录实际平台结果，构建工作流验证三平台编译，安装/发行流程单独验收。Electron 源码已移除；历史 `v1.0.7` 资产仍可下载，GPUI 正式版本须等功能矩阵与平台发布门槛完成后再发布。
 
 ## 目标架构
 
@@ -50,9 +50,9 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 ### P0：基线、功能矩阵与项目骨架
 
 - [x] 确认当前 Electron 应用、CotEditor 7.1.2 源码、GPUI Kit API 和 BetterNotepad 架构。
-- [x] 保留 Electron 版本作为迁移期间的行为/功能基线。
-- [x] 新增独立 Cargo 应用骨架，先跑通 GPUI Kit、跨平台窗口、文本编辑实体、菜单 Actions 与基础文稿读写。
-- [x] 按功能域建立 CotEditor、Electron 基线和 GPUI Rust 实现状态矩阵，记录上游入口、平台差异及验收关注点，见 [`docs/gpui-parity-matrix.md`](gpui-parity-matrix.md)。
+- [x] Electron/CodeMirror 源码、Node/npm 依赖和旧发行工作流已从当前分支删除；历史对齐文档及 `v1.0.7` 已发布资产保留为迁移证据。
+- [x] GPUI 已是唯一应用入口；三平台原生构建和 `gpui-v*` 分发归档工作流已建立。
+- [x] 按功能域建立 CotEditor 上游与 GPUI Rust 实现状态矩阵；旧 Electron 记录仅为历史参考，见 [`docs/gpui-parity-matrix.md`](gpui-parity-matrix.md)。
 
 ### P1：编辑器和文稿核心
 
@@ -81,16 +81,23 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 - [ ] Windows：原生窗口/菜单、文件关联、系统字典/语音、打印和 UI Automation/NVDA。
 - [ ] Linux：X11/Wayland、桌面文件关联、字典/语音、打印和 AT-SPI/NVDA/Orca。
 - [ ] 为纯数据规则、文稿工作流、菜单状态、键位解析、文件格式、跨平台能力分别建立 Rust 单元/集成验证；在 macOS、Windows、Linux 实机审查 UI、实体键盘、缩放、拖放、辅助技术与打包产物。
-- [ ] 只有功能矩阵中每项均有实现或经明确接受的平台限制，且各平台验收记录齐全后，才切换默认发行入口并更新产品兼容性声明。
+- [x] 仓库源码入口已切换至 GPUI；正式 GPUI 发布仍需完成矩阵中的功能/平台验收、安装器、文件关联和签名/公证等交付条件。
 
 ## 第一阶段实施内容
 
 应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
+## 本轮移除记录
+
+Electron/CodeMirror 应用源码、Node/npm 清单及锁文件、前端资源、JS 功能库与 Electron 测试已删除；旧 `v1.0.7` release 资产和 Git 提交历史保留。GPUI 成为唯一当前应用源码。三平台分发工作流以 `gpui-v*` 标签为触发条件，产出 macOS `.app` ZIP、Windows ZIP、Linux tar.gz；它们仍缺安装器、文件关联、签名/公证、自动更新和实机运行验收。
+
+删除 Electron 没有自动迁移其全部能力。旧版功能覆盖远高于当前 GPUI；后续按[对齐矩阵](gpui-parity-matrix.md)继续迁移，正式 GPUI 发布门槛仍未达成。
+
 ## 本轮验证记录
 
-- `cargo fmt --manifest-path app/Cargo.toml --check`、macOS arm64 `cargo check`、macOS x86_64 `cargo check` 与 `git diff --check` 通过。
-- GitHub Actions 运行 `38564488773`、`38569656863`、`38570355701`、`38570702357`、`38572107193`、`38572426770`、`38573139890` 的 macOS、Windows、Linux 原生 runner 均完成 `cargo build --release --locked` 并上传二进制 artifact；后三次分别验证 Syntax 选择功能、CotEditor Format 菜单顺序、选区查找/替换快捷键。macOS arm64 artifact 已启动并显示 GPUI 窗口；本机 debug 构建截屏核验应用菜单名、File 菜单命令和窗口/标签/编辑区/状态栏。macOS 实机菜单已核对 Format 顺序、Syntax 子菜单及 Rust 勾选态、Reset Syntax Analysis 的 Cmd+R 和 Find 的 Cmd+E / Cmd+Shift+E 显示；本批选区查找/替换已通过本机格式检查、编译检查和三平台原生 CI 构建。
+- `cargo fmt --all --check`、`CARGO_TARGET_DIR=app/target cargo check --workspace --locked`、`CARGO_TARGET_DIR=app/target cargo build --workspace --release --locked`、`actionlint .github/workflows/gpui-build.yml .github/workflows/release.yml` 与 `git diff --check` 通过。Cargo crate 已改名为 `cotedit`，版本为 GPUI 预览基线 `0.1.0`，Cargo workspace/lockfile 已移至仓库根目录。
+- 本次切换后的 Windows/Linux 原生构建及三平台归档尚未由 GitHub Actions 运行；须在推送后核对新 root workspace artifact 路径和归档任务。历史 GPUI build run 只验证切换前的代码。
+- macOS debug 窗口与菜单已实机核验：应用名、File 菜单、Format 顺序、Syntax 选项/Rust 勾选态、Cmd+R 与 Find 的 Cmd+E/Cmd+Shift+E 显示；未验证实际按键命令和跨平台运行交互。
 - 本机 Windows x86_64 交叉检查在 `gpui-pre` 构建脚本因缺少 `llvm-rc` 中止；Linux x86_64 因缺少 `x86_64-linux-gnu-gcc` 中止。CI 已在原生 runner 编译通过，仍未对 Windows/Linux 实际窗口、菜单、输入法和文件操作进行运行验收。
 
 ## 验收原则
@@ -98,4 +105,4 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 - 任何功能状态必须来自统一文稿/命令模型，菜单、快捷键和按钮只调用同一命令。
 - 不以“有相同标签/按钮”视为功能一致；逐项核对结果、默认值、Undo、焦点、键盘和可用状态。
 - 代码/API 以当前 GPUI Kit 实际导出为准；每阶段对新 `app` 执行 Cargo 编译检查。变更 UI 后还需在真实窗口检查亮/暗主题、重排/缩放、菜单、焦点与辅助技术。
-- 现有 Electron 的测试和兼容性说明只证明其自身实现，不自动构成 GPUI 版本的验证。
+- CotEditor 上游源码是唯一功能验收基线；Electron 历史文档只能帮助发现迁移需求，不能证明 GPUI 实现或验证。

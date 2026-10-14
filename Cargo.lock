@@ -1119,8 +1119,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "cotedit-gpui"
-version = "1.0.7"
+name = "cotedit"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "atomic-write-file",

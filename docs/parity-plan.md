@@ -1,4 +1,6 @@
-# CotEditor 对齐实施计划
+# CotEditor 对齐实施计划（历史 Electron 版）
+
+> 历史资料：Electron/CodeMirror 源码和发行依赖已删除；本文的 1.0.x 功能与验证记录只用于迁移需求发现。GPUI 当前状态与发布门槛见 [GPUI 迁移计划](gpui-migration-plan.md) 和 [GPUI 功能矩阵](gpui-parity-matrix.md)。
 
 对照上游：CotEditor 7.1.2 稳定发布版，以及截至 2026-10-13 的 [`main` 快照](https://github.com/coteditor/CotEditor/commit/f90e70a644d968e33d48cc6b8258e72a06957f32)。当前 `main` 的 HEAD 为发布合并提交；若后续上游 `main` 前进，更新比较基线和本计划。
 

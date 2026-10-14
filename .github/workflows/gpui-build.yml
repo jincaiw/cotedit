@@ -4,12 +4,20 @@ on:
   push:
     branches: [master]
     paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'app/**'
+      - 'build/icon.icns'
       - '.github/workflows/gpui-build.yml'
+      - '.github/workflows/release.yml'
   pull_request:
     paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'app/**'
+      - 'build/icon.icns'
       - '.github/workflows/gpui-build.yml'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
 
 permissions:
@@ -57,16 +65,14 @@ jobs:
 
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: app
 
       - name: Build application
-        run: cargo build --manifest-path app/Cargo.toml --release --locked
+        run: cargo build -p cotedit --release --locked
 
       - name: Upload GPUI binary
         uses: actions/upload-artifact@v4
         with:
           name: cotedit-gpui-${{ matrix.platform }}
-          path: app/target/release/CotEdit*
+          path: target/release/CotEdit*
           if-no-files-found: error
           retention-days: 14

@@ -2,7 +2,7 @@
 
 基线：CotEditor 7.1.2 源码发布 tag；Rust UI 使用 gpui-kit 0.7.3；参考应用 BetterNotepad 1.3.1。此表记录迁移目标和本仓库 `app/` 当前状态。Electron 列只说明旧实现现状，不能作为 Rust 行为已验证的证据。
 
-| 功能域 | CotEditor 7.1.2 核对入口 | 现有 Electron 基线 | GPUI 当前实现 | 平台/验收关注点 |
+| 功能域 | CotEditor 7.1.2 核对入口 | CotEdit 1.0.7 历史实现记录（Electron 源码已移除） | GPUI 当前实现 | 平台/验收关注点 |
 |---|---|---|---|---|
 | 文稿窗口与标签 | `CotEditor/Sources/Document Window/`、`DocumentWindow.swift`、`Main.storyboard` | 多窗口、标签、保存/恢复与重开流程 | 独立窗口、多标签；按窗口保存最近文稿、恢复已保存文稿和未保存文本快照，并恢复光标行列；标签栏可横向滚动并逐标签关闭；Window > Close Window 可走窗口关闭确认流程 | 纯格式未保存状态、滚动位置和实时光标移动持久化、应用级退出确认、标签重排及逐平台窗口生命周期仍缺/待验收 |
 | 新建、打开、保存 | `Document.swift`、`DocumentViewController.swift`、File 菜单 | 文稿读写、原子保存、另存为、远程文件流程 | 原生文件选择器；多编码和行尾首版、跨平台原子保存、SHA-256 外部修改提示；File > Revert to Saved 可重载磁盘版本，未保存时确认丢弃 | 非文本文件判断待实现；保存检查与替换之间有并发竞态，平台 ACL/扩展元数据保留需验收 |
@@ -22,7 +22,7 @@
 | 打印/导出/服务 | `DocumentViewController.swift`、Print 菜单、Services | HTML 打印、PDF 等导出、外部服务近似 | 未实现 | GPUI/操作系统打印后端、字体、页边距及各平台真实验收 |
 | 拼写、替换、语音和连续互通 | `Main.storyboard`、Mode/文本系统设置、Edit 菜单 | Chromium 字典/语音及固定文本替换近似 | 未实现 | Cocoa 服务只在 macOS 可能直接接入；Windows/Linux 应使用真实 OS 能力或标明不支持 |
 | 可访问性与本地化 | CotEditor SwiftUI/AppKit 全部视图与本地化资源 | Electron 辅助技术和简体中文仍有差距 | 使用 GPUI Kit 语义控件和英文初始 copy | VoiceOver、NVDA、Orca、读屏器、焦点顺序、动态播报及中英长度验收 |
-| 安装、文件关联和更新 | Xcode 工程、Info plist、发行配置 | electron-builder 三平台安装包 | 独立 GPUI 构建工作流已配置三平台原生 runner 编译并上传二进制 CI artifact；尚无 GPUI 安装器、文件关联或正式 release | Windows/Linux/macOS 原生安装、关联、签名/公证和更新渠道 |
+| 安装、文件关联和更新 | Xcode 工程、Info plist、发行配置 | electron-builder 三平台安装包 | 独立 GPUI 构建与 `gpui-v*` 归档工作流可生成 macOS `.app` ZIP、Windows ZIP、Linux tar.gz；尚无正式安装器、文件关联、签名/公证或自动更新 | Windows/Linux/macOS 原生安装、关联、签名/公证和更新渠道 |
 
 ## 首个 GPUI 增量明细
 
@@ -44,5 +44,5 @@
 - 当前文件读写使用 `encoding_rs` / `chardetng`，支持 UTF-8、UTF-16LE/BE 与四种常用单字节/东亚编码；自动检测是启发式且只把识别映射到这些受支持编码。未识别 charset 会按 Windows-1252 解码，存在误判风险；无法无损编码时拒绝保存。
 - 六种换行符均归一化为编辑器 LF 并记录元数据；保存时用行级 diff 把未改行的换行符映射回原值，新增/修改行使用 Format 菜单选定的默认行尾。该策略不是 CotEditor 的编辑事务级行尾跟踪，文件完全重排或重复行可能产生不同映射。
 - 保存通过 `atomic-write-file` 在目标目录写入并提交临时文件；若原路径是符号链接，会先解析到目标文件再替换。保存前使用 SHA-256 对比磁盘内容，外部修改、删除或另存为目标已存在时先确认覆盖。校验与提交之间仍有并发竞态；原子写入未做三平台运行时验收，Windows ACL/扩展元数据保留仍需确认。
-- `app/` 独立 Cargo package，不进入 Electron 的 npm build/release 流程；Cargo lock 固定该 crate 的可解析依赖版本。
-- 现有菜单/键位差异和平台能力细节仍由 [Electron 对齐文档](compatibility.md)、[菜单清单](menu-parity.md)、[Mode 矩阵](mode-options-parity.md)提供参考；Rust 迁移时需更新本表和实现验收状态。
+- `app/` 是当前唯一应用实现；Cargo lock 固定 GPUI crate 依赖。
+- 历史 CotEdit 1.0.7 记录只供迁移时检查旧版功能范围；旧 Electron 源码和运行依赖已删除，不是 GPUI 行为或验收证据。

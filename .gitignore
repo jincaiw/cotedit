@@ -1,7 +1,7 @@
 node_modules/
+target/
 dist/
 release/
-/app/target/
 .DS_Store
 *.log
 .workbuddy-ai/

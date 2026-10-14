@@ -1,8 +1,10 @@
-# CotEditor Mode 选项对齐矩阵
+# CotEditor Mode 选项对齐矩阵（历史 Electron 版）
+
+> 历史资料：CotEdit 1.0.7 的实现与验证已随 Electron 源码移除。当前 GPUI 的 Mode/设置状态以 [GPUI 对齐矩阵](gpui-parity-matrix.md) 为准。
 
 本矩阵以 CotEditor 7.1.2 与上游快照 `f90e70a644d968e33d48cc6b8258e72a06957f32` 为基线。模式字段和 general/code 默认值来自该提交的 [`ModeOptions.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift)；控件范围来自同提交的 [`ModeSettingsView.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Settings%20Window/Panes/ModeSettingsView.swift)。CotEdit 状态描述当前 1.0.7 实现，发布信息见 [`parity-plan.md`](parity-plan.md)。
 
-“general/code”列为 CotEditor 内置 Mode 类别的默认值。`CompletionWordTypes` 的“standard/document/syntax”分别对应系统标准词典、当前文稿词和语法包词。CotEdit 一列描述 1.0.7 当前实现。
+“general/code”列为 CotEditor 内置 Mode 类别的默认值。`CompletionWordTypes` 的“standard/document/syntax”分别对应系统标准词典、当前文稿词和语法包词。CotEdit 一列描述历史 1.0.7 实现，当前源码已删除。
 
 | CotEditor Mode 字段 | general 默认 | code 默认 | CotEdit 当前实现与验证状态 |
 |---|---:|---:|---|
