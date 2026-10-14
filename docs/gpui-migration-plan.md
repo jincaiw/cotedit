@@ -14,6 +14,20 @@
 - GPUI Kit 提供原生 GPUI `Editor` / `Textarea`、Action/key binding、菜单、Root、对话框、主题和窗口能力；逐功能迁移仍需建立文稿模型、编码/行尾、语法配置、设置持久化与平台适配。
 - 工作树起始状态为 `master`，已有 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容；迁移实施需保留这些既有文件，不清理或重写。
 
+## 当前审查结果与实施顺序
+
+审查快照：CotEditor 7.1.2 源码提交 `f90e70a`、GPUI Kit 0.7.3、CotEdit 提交 `49ed99267`；GitHub 最新正式发行仍是 Electron `v1.0.7`。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
+
+| 阶段 | 目标 | 关键实现范围 | 完成/验收条件 |
+|---|---|---|---|
+| A. 桌面壳层与命令 | 优先让窗口、菜单和键盘行为形成一致工作流 | macOS 应用菜单与 Services；File > Open Recent；File/Edit/Format/View/Text/Find/Window/Help 菜单；活动窗口勾选/禁用状态；可复用命令层；标签、状态栏、查找焦点与常用键位 | 逐项对应 storyboard 静态菜单及 `lib/shortcuts.json` 的跨平台映射；macOS/Windows/Linux 菜单和物理键盘记录分别验收 |
+| B. 文本编辑核心 | 补齐 CotEditor 高频文本命令 | 查找选项与命中导航、选择行/词、多光标、缩进配置、注释/行操作、Unicode 转换、剪贴板、撤销边界 | 每个命令明确选区、无选区、Undo 和菜单可用状态；没有对应 GPUI 能力时补 command handler |
+| C. 文稿与偏好 | 对齐文件生命周期和可配置行为 | 格式状态恢复、滚动/光标状态、自动保存恢复、Mode/缩进、编码与换行边界、字体/主题/设置页 | 持久化兼容、损坏文件恢复、大文稿性能与覆盖保护检查 |
+| D. CotEditor 专属能力 | 逐域迁移编辑器之外的工作流 | 大纲/折叠/补全、Inspector、文件夹浏览、片段/替换/语法包、打印/导出、辅助功能 | 每域有明确平台替代方案或被矩阵记录为未支持；检查文件系统边界和权限 |
+| E. 三平台交付 | 让 GPUI 成为可下载、可安装、可更新的独立发行物 | macOS/Windows/Linux 构建矩阵、依赖安装、应用图标/文件关联、版本号、签名/公证和 GitHub Release | 三平台发行包构建成功并启动验收；release workflow 包含 GPUI 产物；Electron 包继续可用 |
+
+**当前优先批次：**先补 A 阶段中应用菜单、动态最近文稿、窗口关闭菜单和菜单项状态；随后把编辑命令从单体窗口文件中抽出并扩展文本操作。每批都先检查代码和目标源码，再编译，提交推送并更新矩阵。GPUI 与 Electron 目前是不同发行目标；E 阶段接入发行流水线前不将 GPUI 源码改动标称为已包含在 Electron 安装包中。
+
 ## 目标架构
 
 ```text
@@ -56,7 +70,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ### P2：CotEditor 命令面和工作流
 
-- [ ] 依 CotEditor 7.1.2 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；当前 GPUI 已加入首批可用菜单、活动窗口 View 勾选态、About、窗口缩放/最小化和新建/查找快捷键，完整菜单与所有平台验收仍缺。
+- [ ] 依 CotEditor 7.1.2 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；GPUI 已加入首批可用菜单、活动窗口 View 勾选态、About、macOS Services/Hide/Hide Others、动态 File > Open Recent、窗口缩放/最小化和新建/查找快捷键，完整菜单与其他平台验收仍缺。
 - [ ] 从上游默认键位表建立统一命令注册表；覆盖 macOS Command、Windows/Linux Control 映射、上下文、冲突检查及用户自定义键位。
 - [ ] 设置窗口各页、设置导入/导出、主题管理、片段、替换定义、工具栏定制、脚本和外部集成。
 - [ ] 文件夹浏览/搜索/预览、拖放规则、远程编辑、打印/导出及恢复管理。
@@ -71,7 +85,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、最近文稿菜单、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、About 和 Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Help/Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、About、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Help/Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮验证记录
 

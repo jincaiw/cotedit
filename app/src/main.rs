@@ -17,7 +17,6 @@ use gpui_kit::component::{
     dialog::{DialogAction, DialogFooter},
     h_flex,
     input::{self, Editor, EditorState, Input, InputEvent, InputState, Position},
-    menu::{DropdownMenu, PopupMenuItem},
     scroll::ScrollableElement as _,
     v_flex,
 };
@@ -189,6 +188,7 @@ actions!(
         Save,
         SaveAs,
         CloseTab,
+        CloseWindow,
         NextTab,
         PreviousTab,
         Find,
@@ -202,6 +202,9 @@ actions!(
         MinimizeWindow,
         ZoomWindow,
         About,
+        HideApplication,
+        HideOtherApplications,
+        ShowApplication,
         SetUtf8,
         SetUtf8Bom,
         SetUtf16Le,
@@ -219,6 +222,12 @@ actions!(
         Quit
     ]
 );
+
+#[derive(Clone, PartialEq, Action)]
+#[action(no_json)]
+struct OpenRecentDocument {
+    path: PathBuf,
+}
 
 struct Document {
     editor: Entity<EditorState>,
@@ -266,11 +275,12 @@ impl Document {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct MenuState {
     line_numbers: bool,
     invisibles: bool,
     soft_wrap: bool,
+    recent_files: Vec<PathBuf>,
 }
 
 impl Default for MenuState {
@@ -279,6 +289,7 @@ impl Default for MenuState {
             line_numbers: true,
             invisibles: false,
             soft_wrap: true,
+            recent_files: Vec::new(),
         }
     }
 }
@@ -353,6 +364,7 @@ impl CotEdit {
             }
         }
         app.persist_session(cx);
+        install_menus(cx, app.menu_state());
         app
     }
 
@@ -559,6 +571,7 @@ impl CotEdit {
             line_numbers: document.show_line_numbers,
             invisibles: document.show_whitespaces,
             soft_wrap: document.soft_wrap,
+            recent_files: self.recent_files.clone(),
         }
     }
 
@@ -577,6 +590,32 @@ impl CotEdit {
     fn new_tab(&mut self, _: &NewTab, window: &mut Window, cx: &mut Context<Self>) {
         self.add_document(None, DecodedDocument::default(), None, window, cx);
         self.persist_session(cx);
+    }
+
+    fn open_recent_document(
+        &mut self,
+        action: &OpenRecentDocument,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_paths(vec![action.path.clone()], window, cx);
+    }
+
+    fn hide_application(&mut self, _: &HideApplication, _: &mut Window, cx: &mut Context<Self>) {
+        cx.hide();
+    }
+
+    fn hide_other_applications(
+        &mut self,
+        _: &HideOtherApplications,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.hide_other_apps();
+    }
+
+    fn show_application(&mut self, _: &ShowApplication, _: &mut Window, cx: &mut Context<Self>) {
+        cx.activate(true);
     }
 
     fn minimize_window(&mut self, _: &MinimizeWindow, window: &mut Window, _: &mut Context<Self>) {
@@ -652,6 +691,7 @@ impl CotEdit {
             }
         }
         self.persist_session(cx);
+        install_menus(cx, self.menu_state());
     }
 
     fn activate(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
@@ -796,6 +836,7 @@ impl CotEdit {
                 self.update_title(window, cx);
                 self.remember_recent(&path);
                 self.persist_session(cx);
+                install_menus(cx, self.menu_state());
                 cx.notify();
             }
             Err(error) => {
@@ -1011,6 +1052,10 @@ impl CotEdit {
         .detach_and_log_err(cx);
     }
 
+    fn close_window(&mut self, _: &CloseWindow, window: &mut Window, cx: &mut Context<Self>) {
+        self.request_close_window(window, cx);
+    }
+
     fn close_tab(&mut self, _: &CloseTab, window: &mut Window, cx: &mut Context<Self>) {
         self.close_document(self.active, window, cx);
     }
@@ -1074,8 +1119,6 @@ impl CotEdit {
     }
 
     fn render_tabs(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let recent_files = self.recent_files.clone();
-        let weak = cx.entity().downgrade();
         h_flex()
             .flex_none()
             .w_full()
@@ -1135,30 +1178,6 @@ impl CotEdit {
                         this.persist_session(cx);
                     })),
             )
-            .child(
-                Button::new("recent-files")
-                    .small()
-                    .label("Recent")
-                    .dropdown_menu(move |mut menu, _, _| {
-                        if recent_files.is_empty() {
-                            return menu.item(PopupMenuItem::new("No Recent Files").disabled(true));
-                        }
-                        for path in &recent_files {
-                            let path = path.clone();
-                            let label = path.display().to_string();
-                            let weak = weak.clone();
-                            menu = menu.item(PopupMenuItem::new(label).on_click(
-                                move |_, window, cx| {
-                                    let open_path = path.clone();
-                                    let _ = weak.update(cx, |this, cx| {
-                                        this.open_paths(vec![open_path], window, cx)
-                                    });
-                                },
-                            ));
-                        }
-                        menu
-                    }),
-            )
     }
 }
 
@@ -1184,6 +1203,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::save))
             .on_action(cx.listener(Self::save_as))
             .on_action(cx.listener(Self::close_tab))
+            .on_action(cx.listener(Self::close_window))
             .on_action(cx.listener(Self::next_tab))
             .on_action(cx.listener(Self::previous_tab))
             .on_action(cx.listener(Self::quit))
@@ -1216,6 +1236,10 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::minimize_window))
             .on_action(cx.listener(Self::zoom_window))
             .on_action(cx.listener(Self::about))
+            .on_action(cx.listener(Self::hide_application))
+            .on_action(cx.listener(Self::hide_other_applications))
+            .on_action(cx.listener(Self::show_application))
+            .on_action(cx.listener(Self::open_recent_document))
             .on_action(cx.listener(Self::find_next))
             .on_action(cx.listener(Self::find_previous))
             .child(self.render_tabs(cx))
@@ -1262,6 +1286,7 @@ fn install_commands(cx: &mut App) {
         KeyBinding::new("secondary-s", Save, None),
         KeyBinding::new("secondary-shift-s", SaveAs, None),
         KeyBinding::new("secondary-w", CloseTab, None),
+        KeyBinding::new("secondary-shift-w", CloseWindow, None),
         KeyBinding::new("secondary-shift-[", PreviousTab, None),
         KeyBinding::new("secondary-shift-]", NextTab, None),
         KeyBinding::new("ctrl-tab", NextTab, None),
@@ -1271,15 +1296,46 @@ fn install_commands(cx: &mut App) {
         KeyBinding::new("secondary-shift-g", FindPrevious, Some("Editor")),
         KeyBinding::new("secondary-l", GoToLine, Some("Editor")),
         KeyBinding::new("cmd-m", MinimizeWindow, None),
+        KeyBinding::new("cmd-h", HideApplication, None),
+        KeyBinding::new("cmd-alt-h", HideOtherApplications, None),
         KeyBinding::new("secondary-q", Quit, None),
     ]);
     install_menus(cx, MenuState::default());
 }
 
 fn install_menus(cx: &mut App, state: MenuState) {
+    let recent_menu = if state.recent_files.is_empty() {
+        Menu::new("Open Recent").items([MenuItem::action(
+            "No Recent Files",
+            OpenRecentDocument {
+                path: PathBuf::new(),
+            },
+        )
+        .disabled(true)])
+    } else {
+        Menu::new("Open Recent").items(state.recent_files.iter().map(|path| {
+            let name = path.file_name().map_or_else(
+                || path.display().to_string(),
+                |name| name.to_string_lossy().into_owned(),
+            );
+            let parent = path
+                .parent()
+                .map_or_else(String::new, |parent| parent.display().to_string());
+            MenuItem::action(
+                format!("{name} — {parent}"),
+                OpenRecentDocument { path: path.clone() },
+            )
+        }))
+    };
     cx.set_menus([
         Menu::new("CotEdit").items([
             MenuItem::action("About CotEdit", About),
+            MenuItem::separator(),
+            MenuItem::os_submenu("Services", SystemMenuType::Services),
+            MenuItem::separator(),
+            MenuItem::action("Hide CotEdit", HideApplication),
+            MenuItem::action("Hide Others", HideOtherApplications),
+            MenuItem::action("Show CotEdit", ShowApplication),
             MenuItem::separator(),
             MenuItem::action("Quit CotEdit", Quit),
         ]),
@@ -1289,6 +1345,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("New Tab", NewTab),
             MenuItem::separator(),
             MenuItem::action("Open…", Open),
+            MenuItem::submenu(recent_menu),
             MenuItem::separator(),
             MenuItem::action("Save", Save),
             MenuItem::action("Save As…", SaveAs),
@@ -1342,6 +1399,8 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Go to Line…", GoToLine),
         ]),
         Menu::new("Window").items([
+            MenuItem::action("Close Window", CloseWindow),
+            MenuItem::separator(),
             MenuItem::action("Minimize", MinimizeWindow),
             MenuItem::action("Zoom", ZoomWindow),
         ]),
