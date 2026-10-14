@@ -6,7 +6,7 @@
 |---|---|---|---|---|
 | 文稿窗口与标签 | `CotEditor/Sources/Document Window/`、`DocumentWindow.swift`、`Main.storyboard` | 多窗口、标签、保存/恢复与重开流程 | 独立窗口、多标签；按窗口保存最近文稿、恢复已保存文稿和未保存文本快照，并恢复光标行列；标签栏可横向滚动并逐标签关闭；Window > Close Window 可走窗口关闭确认流程 | 纯格式未保存状态、滚动位置和实时光标移动持久化、应用级退出确认、标签重排及逐平台窗口生命周期仍缺/待验收 |
 | 新建、打开、保存 | `Document.swift`、`DocumentViewController.swift`、File 菜单 | 文稿读写、原子保存、另存为、远程文件流程 | 原生文件选择器；多编码和行尾首版、跨平台原子保存、SHA-256 外部修改提示 | 非文本文件判断待实现；保存检查与替换之间有并发竞态，平台 ACL/扩展元数据保留需验收 |
-| 编码与换行符 | `Packages/EditorCore/Sources/DocumentFile/`、Format 菜单、检查器 | 多编码、BOM、六种行尾、混合行尾统计/保留 | BOM 优先、严格 UTF-8 / chardetng 常见编码识别；支持 UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5 的显式选择和无损编码检查；识别六类行尾，基于行文本差异保留未改行的原行尾，Format 可统一 | 还需错误编码/二进制文稿处理、不同 charset 检测边界和大文稿压力验收；已修改行使用当前默认行尾，行差异映射不是 CotEditor 的增量行尾缓存算法 |
+| 编码与换行符 | `Packages/EditorCore/Sources/DocumentFile/`、Format 菜单、检查器 | 多编码、BOM、六种行尾、混合行尾统计/保留 | BOM 优先、严格 UTF-8 / chardetng 常见编码识别；支持 UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5 的显式选择和无损编码检查；识别六类行尾，基于行文本差异保留未改行的原行尾，Format 菜单可统一且勾选当前编码/默认行尾 | 还需错误编码/二进制文稿处理、不同 charset 检测边界和大文稿压力验收；已修改行使用当前默认行尾，行差异映射不是 CotEditor 的增量行尾缓存算法 |
 | 编辑器与语法 | `EditorTextViewController.swift`、`ModeOptions.swift`、`Resources/Syntaxes/` | CodeMirror 6、72 个内置语法及 `.cotsyntax` 子集 | GPUI Editor；20 种 Tree-sitter 语言映射；行号、不可见空白、软换行可切换 | Tree-sitter token/编辑语义、字体与语法范围对齐；折叠、大纲、补全及大文稿/IMEs待验收 |
 | Undo、文本编辑与多光标 | `Packages/EditorCore/Sources/TextEditing/`、Edit/Text 菜单 | 常用命令、批量替换、选区与多光标 | 编辑器内置基本 Undo/Redo、剪贴板、全选 | 命令覆盖、撤销边界、选区、IME 和多个光标需逐项核对 |
 | 查找/替换与正则 | `Packages/EditorCore/Sources/TextFind/`、Find 菜单 | 查找、替换、多重替换及 ICU 子集 | GPUI Kit 搜索面板支持文本查找、替换当前命中、全部替换及行号跳转；secondary-L 打开行号对话框 | 正则/大小写/整词/选区范围选项、ICU 语义、命中导航和搜索快捷键待核对 |

@@ -280,6 +280,8 @@ struct MenuState {
     line_numbers: bool,
     invisibles: bool,
     soft_wrap: bool,
+    encoding: TextEncoding,
+    line_ending: LineEnding,
     recent_files: Vec<PathBuf>,
 }
 
@@ -289,6 +291,8 @@ impl Default for MenuState {
             line_numbers: true,
             invisibles: false,
             soft_wrap: true,
+            encoding: TextEncoding::Utf8 { bom: false },
+            line_ending: LineEnding::Lf,
             recent_files: Vec::new(),
         }
     }
@@ -571,6 +575,8 @@ impl CotEdit {
             line_numbers: document.show_line_numbers,
             invisibles: document.show_whitespaces,
             soft_wrap: document.soft_wrap,
+            encoding: document.encoding,
+            line_ending: document.line_ending,
             recent_files: self.recent_files.clone(),
         }
     }
@@ -948,6 +954,7 @@ impl CotEdit {
     ) {
         self.documents[self.active].encoding = encoding;
         self.update_title(window, cx);
+        install_menus(cx, self.menu_state());
         cx.notify();
     }
 
@@ -961,6 +968,7 @@ impl CotEdit {
         document.line_ending = line_ending;
         document.force_line_ending = true;
         self.update_title(window, cx);
+        install_menus(cx, self.menu_state());
         cx.notify();
     }
 
@@ -1362,24 +1370,40 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::os_action("Select All", input::SelectAll, OsAction::SelectAll),
         ]),
         Menu::new("Format").items([
-            MenuItem::submenu(Menu::new("Text Encoding").items([
-                MenuItem::action("UTF-8", SetUtf8),
-                MenuItem::action("UTF-8 BOM", SetUtf8Bom),
-                MenuItem::action("UTF-16LE", SetUtf16Le),
-                MenuItem::action("UTF-16BE", SetUtf16Be),
-                MenuItem::action("Western (Windows-1252)", SetWindows1252),
-                MenuItem::action("Japanese (Shift_JIS)", SetShiftJis),
-                MenuItem::action("Simplified Chinese (GBK)", SetGbk),
-                MenuItem::action("Traditional Chinese (Big5)", SetBig5),
-            ])),
-            MenuItem::submenu(Menu::new("Line Endings").items([
-                MenuItem::action("LF", SetEolLf),
-                MenuItem::action("CRLF", SetEolCrLf),
-                MenuItem::action("CR", SetEolCr),
-                MenuItem::action("NEL", SetEolNel),
-                MenuItem::action("Line Separator", SetEolLs),
-                MenuItem::action("Paragraph Separator", SetEolPs),
-            ])),
+            MenuItem::submenu(
+                Menu::new("Text Encoding").items([
+                    MenuItem::action("UTF-8", SetUtf8)
+                        .checked(matches!(state.encoding, TextEncoding::Utf8 { bom: false })),
+                    MenuItem::action("UTF-8 BOM", SetUtf8Bom)
+                        .checked(matches!(state.encoding, TextEncoding::Utf8 { bom: true })),
+                    MenuItem::action("UTF-16LE", SetUtf16Le)
+                        .checked(matches!(state.encoding, TextEncoding::Utf16Le { .. })),
+                    MenuItem::action("UTF-16BE", SetUtf16Be)
+                        .checked(matches!(state.encoding, TextEncoding::Utf16Be { .. })),
+                    MenuItem::action("Western (Windows-1252)", SetWindows1252)
+                        .checked(state.encoding == TextEncoding::Windows1252),
+                    MenuItem::action("Japanese (Shift_JIS)", SetShiftJis)
+                        .checked(state.encoding == TextEncoding::ShiftJis),
+                    MenuItem::action("Simplified Chinese (GBK)", SetGbk)
+                        .checked(state.encoding == TextEncoding::Gbk),
+                    MenuItem::action("Traditional Chinese (Big5)", SetBig5)
+                        .checked(state.encoding == TextEncoding::Big5),
+                ]),
+            ),
+            MenuItem::submenu(
+                Menu::new("Line Endings").items([
+                    MenuItem::action("LF", SetEolLf).checked(state.line_ending == LineEnding::Lf),
+                    MenuItem::action("CRLF", SetEolCrLf)
+                        .checked(state.line_ending == LineEnding::CrLf),
+                    MenuItem::action("CR", SetEolCr).checked(state.line_ending == LineEnding::Cr),
+                    MenuItem::action("NEL", SetEolNel)
+                        .checked(state.line_ending == LineEnding::Nel),
+                    MenuItem::action("Line Separator", SetEolLs)
+                        .checked(state.line_ending == LineEnding::LineSeparator),
+                    MenuItem::action("Paragraph Separator", SetEolPs)
+                        .checked(state.line_ending == LineEnding::ParagraphSeparator),
+                ]),
+            ),
         ]),
         Menu::new("View").items([
             MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
