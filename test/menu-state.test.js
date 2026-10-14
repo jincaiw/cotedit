@@ -8,7 +8,7 @@ const lineCommands = ['menu-sort-lines', 'menu-sort-by-pattern', 'menu-reverse-l
 
 test('disables document commands without an open document', () => {
   const states = getMenuItemStates({});
-  for (const id of ['menu-save', 'menu-save-as', 'menu-close-document', 'menu-revert', 'menu-reveal-file', 'menu-copy-path', 'menu-find', 'menu-go-to-line', 'menu-select-previous-outline-item', 'menu-select-next-outline-item', 'menu-select-line', 'menu-delete', 'menu-insert-backslash', 'menu-insert-yen-mark', 'menu-insert-unicode-code-point', 'menu-edit-color-code', 'menu-toggle-split', 'menu-close-split', 'menu-focus-next-editor', 'menu-focus-previous-editor', 'menu-stack-editors-vertically', 'menu-prevent-editing', 'menu-orientation-horizontal', 'menu-orientation-vertical', 'menu-writing-direction-ltr', 'menu-writing-direction-rtl', 'menu-toggle-page-guide', 'menu-warnings', 'menu-document-inspector', 'menu-inspect-character', 'menu-advanced-character-count', 'menu-outline', 'menu-replace-text']) {
+  for (const id of ['menu-save', 'menu-save-as', 'menu-close-document', 'menu-revert', 'menu-reveal-file', 'menu-copy-path', 'menu-find', 'menu-go-to-line', 'menu-select-previous-outline-item', 'menu-select-next-outline-item', 'menu-select-line', 'menu-delete', 'menu-insert-backslash', 'menu-insert-yen-mark', 'menu-insert-unicode-code-point', 'menu-edit-color-code', 'menu-toggle-split', 'menu-close-split', 'menu-focus-next-editor', 'menu-focus-previous-editor', 'menu-stack-editors-vertically', 'menu-prevent-editing', 'menu-orientation-horizontal', 'menu-orientation-vertical', 'menu-writing-direction-ltr', 'menu-writing-direction-rtl', 'menu-toggle-page-guide', 'menu-warnings', 'menu-document-inspector', 'menu-inspect-character', 'menu-advanced-character-count', 'menu-outline', 'menu-replace-text', 'menu-automatic-period']) {
     assert.equal(states[id].enabled, false, `${id} should be disabled`);
   }
   assert.equal(states['menu-multiple-replace'].enabled, true, 'the definition manager remains available without an open document');
@@ -31,6 +31,11 @@ test('disables document commands without an open document', () => {
   for (const id of ['menu-fullwidth', 'menu-halfwidth', 'menu-fullwidth-roman', 'menu-halfwidth-roman']) {
     assert.equal(states[id].enabled, false, `${id} should be disabled without a selection`);
   }
+});
+
+test('double-space period menu state follows the active syntax setting', () => {
+  assert.deepEqual(getMenuItemStates({ hasDocument: true, automaticPeriodSubstitution: true })['menu-automatic-period'], { enabled: true, checked: true });
+  assert.deepEqual(getMenuItemStates({ hasDocument: true, automaticPeriodSubstitution: false })['menu-automatic-period'], { enabled: true, checked: false });
 });
 
 test('dynamic snippet menu items are enabled only for editable documents', () => {

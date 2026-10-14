@@ -8,6 +8,11 @@ test('settings default safely for malformed storage values', () => {
   assert.deepEqual(normalizeSettings({ theme: 'auto', indent: 3, wrap: 'yes', fontSize: 'huge' }), { ...DEFAULT_SETTINGS });
 });
 
+test('per-syntax automatic period substitution defaults off and accepts only valid boolean overrides', () => {
+  assert.deepEqual(DEFAULT_SETTINGS.automaticPeriodSubstitutionByLanguage, {});
+  assert.deepEqual(normalizeSettings({ automaticPeriodSubstitutionByLanguage: { plaintext: true, javascript: false, 'bad key': true, markdown: 'yes' } }).automaticPeriodSubstitutionByLanguage, { plaintext: true, javascript: false });
+});
+
 test('default window dimensions may be blank while explicit dimensions remain bounded and portable', () => {
   assert.equal(DEFAULT_SETTINGS.windowWidth, null);
   assert.equal(DEFAULT_SETTINGS.windowHeight, null);

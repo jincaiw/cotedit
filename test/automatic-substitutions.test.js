@@ -36,6 +36,17 @@ test('smart dashes replace the second typed hyphen with one em dash', () => {
   assert.deepEqual(typeText({ doc: '—', insert: '-', from: 1, options }), { text: '—-', cursor: 2 });
 });
 
+test('double-space period substitution requires a second typed space after word or closing punctuation', () => {
+  const options = { automaticPeriodSubstitution: true };
+  assert.deepEqual(typeText({ doc: 'hello ', insert: ' ', options }), { text: 'hello. ', cursor: 7 });
+  assert.deepEqual(typeText({ doc: '你好 ', insert: ' ', options }), { text: '你好. ', cursor: 4 });
+  assert.deepEqual(typeText({ doc: 'word) ', insert: ' ', options }), { text: 'word). ', cursor: 7 });
+  assert.equal(typeText({ doc: 'hello ', insert: ' ', options: { automaticPeriodSubstitution: false } }).text, 'hello  ');
+  assert.equal(typeText({ doc: 'hello. ', insert: ' ', options }).text, 'hello.  ');
+  assert.equal(typeText({ doc: 'hello', insert: '  ', options }).text, 'hello  ');
+  assert.equal(typeText({ doc: 'hello ', insert: ' ', userEvent: 'input.paste', options }).text, 'hello  ');
+});
+
 test('automatic local text rules apply on a delimiter, longest first, without cascading', () => {
   const options = {
     textReplacement: true,

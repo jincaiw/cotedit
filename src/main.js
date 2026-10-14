@@ -1213,7 +1213,8 @@ function spellCheckingExtension(doc = activeDoc) {
 const SUBSTITUTION_MODE_OPTIONS = Object.freeze({
   smartQuotes: { setting: 'smartQuotesByLanguage', modeDefault: false, controlId: 'smart-quotes-language-setting' },
   smartDashes: { setting: 'smartDashesByLanguage', modeDefault: false, controlId: 'smart-dashes-language-setting' },
-  textReplacement: { setting: 'automaticTextReplacementByLanguage', modeDefault: true, controlId: 'automatic-text-replacement-language-setting' }
+  textReplacement: { setting: 'automaticTextReplacementByLanguage', modeDefault: true, controlId: 'automatic-text-replacement-language-setting' },
+  automaticPeriod: { setting: 'automaticPeriodSubstitutionByLanguage', modeDefault: false, controlId: 'automatic-period-language-setting' }
 });
 
 function substitutionModeEnabled(option, language = activeDoc?.language) {
@@ -1238,6 +1239,7 @@ function automaticSubstitutionEditorExtension(doc = activeDoc) {
     smartQuotes: substitutionModeEnabled('smartQuotes', language),
     smartDashes: substitutionModeEnabled('smartDashes', language),
     textReplacement: substitutionModeEnabled('textReplacement', language),
+    automaticPeriodSubstitution: substitutionModeEnabled('automaticPeriod', language),
     rules: settings.textReplacements
   }));
 }
@@ -2217,6 +2219,7 @@ function syncMenuState() {
     smartQuotes: substitutionModeEnabled('smartQuotes'),
     smartDashes: substitutionModeEnabled('smartDashes'),
     automaticTextReplacement: substitutionModeEnabled('textReplacement'),
+    automaticPeriodSubstitution: substitutionModeEnabled('automaticPeriod'),
     speechAvailable: typeof window.speechSynthesis?.speak === 'function' && typeof window.SpeechSynthesisUtterance === 'function',
     hasSpeechText: Boolean(view?.state.doc.length),
     speechActive,
@@ -3002,7 +3005,7 @@ function setSettingsPopover(open, restoreFocus = false) {
   popover.classList.toggle('hidden', !nextOpen);
   popover.setAttribute('aria-hidden', String(!nextOpen));
   $('#settings-toggle').setAttribute('aria-expanded', String(nextOpen));
-  if (nextOpen) setTimeout(() => $('#font-down').focus(), 0);
+  if (nextOpen) $('#font-down').focus();
   else if (restoreFocus) $('#settings-toggle').focus();
 }
 
@@ -6662,6 +6665,7 @@ function handleMenu(channel, value) {
     'menu:toggle-smart-quotes': () => toggleSubstitutionMode('smartQuotes'),
     'menu:toggle-smart-dashes': () => toggleSubstitutionMode('smartDashes'),
     'menu:toggle-text-replacement': () => toggleSubstitutionMode('textReplacement'),
+    'menu:toggle-automatic-period': () => toggleSubstitutionMode('automaticPeriod'),
     'menu:toggle-spelling': () => {
       const language = activeDoc?.language;
       if (!language) return;

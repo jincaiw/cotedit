@@ -15,7 +15,8 @@ test('settings export/import preserves per-syntax substitution choices', () => {
   const settings = {
     smartQuotesByLanguage: { plaintext: true },
     smartDashesByLanguage: { markdown: true },
-    automaticTextReplacementByLanguage: { javascript: false }
+    automaticTextReplacementByLanguage: { javascript: false },
+    automaticPeriodSubstitutionByLanguage: { plaintext: true }
   };
   assert.deepEqual(parseSettingsFile(serializeSettingsFile(settings)), {
     ...DEFAULT_SETTINGS,

@@ -2,6 +2,8 @@
 
 CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 跨平台实现。界面、菜单、快捷键和编辑操作按上游逐项核对；当前稳定基线为 CotEditor 7.1.2，上游 `main` 快照为 2026-10-13 的 `f90e70a644d968e33d48cc6b8258e72a06957f32`。源码级比对仍在推进，本页注明近似行为、缺项、平台实现边界和验证状态。执行顺序见[对齐实施计划](parity-plan.md)。
 
+**CotEdit 1.0.6 双空格句点：**当前语法可在设置面板或 Edit > Substitutions 单独启停，Mode 默认关闭；在 Unicode 字母/数字或闭合引号、括号后输入第二个空格时，将前一空格替换为句点，保留第二空格。只处理 `input.type` 单次插入，不处理粘贴，两个字符变化合并在同一 CodeMirror 事务。该规则是固定的应用内近似，不根据系统语言或键盘地区改变；CotEditor 实际调用 macOS 地区化系统服务。
+
 **CotEdit 1.0.5 Mode 字体类型：**Format > Font > 字体类型和设置面板控件按当前语法保存 `standard`/`monospaced` 覆盖；未覆写时，CotEdit 依可确认的 Mode 分类让 Plain Text/Markdown 使用标准栈、代码模式使用等宽栈。旧版单一 `fontType` 偏好在缺少新映射时迁移成全局兼容值，可对某语法选“跟随模式默认”以覆盖该值。字体系列仍是应用级选择；打印根据当前文稿语法使用相同有效字体类型。CotEditor 的 Mode 还包含系统级字体选择与编辑器细节，此实现仅对齐字体类型切换工作流；导入语法 Mode 分类与原生字体呈现仍需目标系统验收。
 
 **CotEdit 1.0.4 字体选择（Format > Font）：**“显示字体…”提供可输入的字体系列名、常见字体建议与预览；名称最长 80 个字符，只接受安全的字母/数字/空格/点/下划线/连字符组合，随设置偏好和设置文件持久化，并作用于主编辑器、分屏编辑器和打印 HTML。浏览器尝试使用请求字体；若目标系统没有该字体，后续标准/等宽字体栈接替。Electron 不提供可靠的已安装字体枚举或 Cocoa `NSFontPanel`，因此建议列表不是系统字体清单；抗锯齿/栅格化没有跨平台等价开关，未伪造该控件。Electron smoke 验证对话框名称、键盘初始焦点、偏好保存和主编辑区计算字体；macOS/Windows 系统字体覆盖、各发行版 Linux 字体回退及原生面板外观仍待实机核验。
@@ -10,7 +12,7 @@ CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 
 
 **2026-10-13 增量（Edit > Speech）：**CotEditor 主菜单的 Speech 子菜单现有 Start Speaking/Stop Speaking，无静态快捷键。CotEdit 增加同层级命令：有选区时朗读主选区，否则朗读全文；运行时按 Web Speech API 是否可用、当前文稿是否有内容及朗读状态更新菜单启用项。操作交由系统/Chromium 当前平台的语音合成实现，不将正文发送给 CotEdit 自有网络服务。平台可用语音、语音面板、朗读队列/声音选择和辅助技术表现尚未实机逐项比对，因此此项只对齐可用工作流，不宣称 AppKit `NSSpeechSynthesizer` 或原生菜单完全一致。
 
-**2026-10-13 增量（Edit > Substitutions）：**CotEditor Mode 默认智能引号、智能破折号关闭，自动文本替换开启。CotEdit 为三项提供逐语法“跟随默认/开启/关闭”，菜单复选状态同步当前语法；普通直引号按上下文替换为英文弯引号，连续双连字符替换为长破折号。自定义替换规则新增“输入时自动应用”独立选项，输入分隔符时在同一编辑事务替换触发词；既有规则迁移后保持手动，防止升级时改变既有输入行为。手动“替换文本”命令仍作用于选区。CotEdit 尚未复刻随系统地区变化的原生标点、Smart Copy/Paste 和双空格句点，相关菜单明确禁用；智能标点目前只处理单一插入光标、固定英文弯引号/长破折号映射，未核验多光标、复杂 IME 组合输入及各语言系统替换规则；Mode 默认值参照 [ModeOptions.swift](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift)。
+**2026-10-13 增量（Edit > Substitutions）：**CotEditor Mode 默认智能引号、智能破折号关闭，自动文本替换开启。CotEdit 为四项提供逐语法“跟随默认/开启/关闭”，菜单复选状态同步当前语法；普通直引号按上下文替换为英文弯引号，连续双连字符替换为长破折号。自定义替换规则新增“输入时自动应用”独立选项，输入分隔符时在同一编辑事务替换触发词；既有规则迁移后保持手动，防止升级时改变既有输入行为。手动“替换文本”命令仍作用于选区。CotEdit 已提供应用内双空格插入句点设置，按语法保存并默认关闭；该实现不跟随系统地区。Smart Copy/Paste 与 Show Substitutions 面板尚未复刻，相关菜单显示为禁用；智能标点目前只处理单一插入光标、固定英文弯引号/长破折号映射，未核验多光标、复杂 IME 组合输入及各语言系统替换规则；Mode 默认值参照 [ModeOptions.swift](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift)。
 
 **2026-10-13 增量（Inspector、分屏和帮助菜单）：**View > Inspector 新增总开关及 `CmdOrCtrl+I`，没有已打开的检查器时显示文稿检查器，已有面板时关闭当前面板；不同于 CotEditor 的原生 Inspector split view，焦点与菜单状态由 Electron UI 冒烟覆盖。分屏菜单移除未经上游静态声明的打开快捷键，焦点切换按 macOS `Command+Backquote` / `Option+Command+Backquote` 设置，非 macOS 使用 Ctrl 组合映射。Help 提供 CotEdit 发行说明、报告问题和项目主页，使用主进程内固定 HTTPS 白名单及 `shell.openExternal`；链接只在用户点击时打开浏览器，不附加文稿或诊断信息。真实物理键盘布局、各平台菜单绘制和外部浏览器行为仍需目标系统验收。
 
@@ -38,7 +40,7 @@ CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 
 
 ## 功能对应
 
-| 工作流 | CotEdit 1.0.5 | 与 CotEditor 的关系 |
+| 工作流 | CotEdit 1.0.6 | 与 CotEditor 的关系 |
 |---|---|---|
 | 外观与状态栏 | 工作树增加默认关闭的“状态栏使用不透明背景”偏好；关闭时状态栏匹配编辑器主题背景，开启时使用应用面板底色；与既有“显示状态栏”偏好和 View 菜单复选项独立，随本机设置与设置文件导入/导出持久化 | CotEditor 7.1.0 在 Appearance 设置提供 Status bar 选项，7.1.1 默认 `prefersOpaqueBarBackground=false`；CotEdit 以主题纯色匹配模拟背景反映，不实现 macOS 27 原生材质/半透明合成；Node/CSS 静态验证不证明真实桌面绘制或视觉 1:1，见 [7.1.0 发布说明](https://coteditor.com/releasenotes/7.1.0.en)、[外观设置帮助](https://github.com/coteditor/CotEditor/blob/7.1.1/CotEditor/Resources/CotEditor.help/Contents/Resources/en.lproj/pgs/settings_appearance.html) 与 [默认设置源码](https://github.com/coteditor/CotEditor/blob/7.1.1/CotEditor/Sources/Application/Defaults/DefaultSettings.swift) |
 | 字体系列选择 | Format > Font > “显示字体…”对话框接受单一字体族名称，提供常见字体建议和实时预览；名称最长 80 字符并经安全字符校验；设置偏好及设置文件导入/导出保留，主/分屏编辑器和打印 CSS 使用同一字体栈。字体类型按语法保存，general/纯文本默认标准、代码默认等宽，可覆写或恢复 Mode 默认 | 对话框不枚举系统字体、不能检测字体是否已安装；浏览器找不到指定字体时回退到当前语法的标准/等宽栈。它不是 Cocoa `NSFontPanel`；原生字体预览、字符覆盖列表与 Antialias 控制仍不提供，需在目标平台查看回退结果 |

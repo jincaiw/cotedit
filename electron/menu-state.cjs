@@ -36,7 +36,7 @@ function getMenuItemStates(payload = {}) {
     'menu-automatic-text-replacement': { enabled: hasDocument, checked: payload.automaticTextReplacement === true },
     'menu-show-substitutions': { enabled: false },
     'menu-smart-copy-paste': { enabled: false },
-    'menu-automatic-period': { enabled: false },
+    'menu-automatic-period': { enabled: hasDocument, checked: payload.automaticPeriodSubstitution === true },
     'menu-speech-start': { enabled: hasDocument && payload.speechAvailable === true && payload.hasSpeechText === true },
     'menu-speech-stop': { enabled: hasDocument && payload.speechActive === true },
     'menu-undo': { enabled: canEdit && payload.canUndo === true },

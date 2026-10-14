@@ -5,7 +5,7 @@
 | 上游菜单区 | CotEdit 当前情况 | 主要差异/下一步 |
 |---|---|---|
 | Edit > Spelling and Grammar | 每语法“输入时检查拼写”与勾选态已接入；系统字典建议和添加词通过 Electron 右键菜单 | “立即检查全文”“语法检查”“自动更正”及 Cocoa 拼写面板没有 Electron 等价 API，菜单显示为禁用；Windows/Linux 词典受已安装语言限制 |
-| Edit > Substitutions | 手动替换命令与上游入口并存；智能引号、智能破折号、自动文本替换均有按语法持久化的开关；可为本地规则单独启用输入时替换；旧规则默认仍为手动 | 引号使用英文弯引号 `“”`/`‘’`，两个连字符转换为 `—`；语言地区特定的 Apple 替换规则、Smart Copy/Paste、双空格句点与 Show Substitutions 面板尚未复刻；禁用项在菜单中说明原因，参照 [`ModeOptions.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift) |
+| Edit > Substitutions | 手动替换命令与上游入口并存；智能引号、智能破折号、自动文本替换、双空格插入句点均有按语法持久化的开关；可为本地规则单独启用输入时替换；旧规则默认仍为手动 | 引号使用英文弯引号 `“”`/`‘’`，两个连字符转换为 `—`；双空格句点默认关闭，启用后按固定规则转为 `. `，不随系统地区变化；语言地区特定的 Apple 替换规则、Smart Copy/Paste 与 Show Substitutions 面板尚未复刻；禁用项在菜单中说明原因，参照 [`ModeOptions.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift) |
 | Edit > Speech | 开始/停止朗读已实现；选择非空文本时读主选区，否则读全文；菜单状态随平台 Web Speech API 更新 | 需要在 macOS、Windows、Linux 核验本地语音可用性、暂停/取消、长文本、读屏器与平台菜单交互；不等同 AppKit Speech 子系统 |
 | Edit > Insert from iPhone or iPad | 未实现 | Apple Continuity 设备协同依赖 macOS/iCloud，不在 Windows/Linux 伪造同名入口；检查 macOS 专属真实实现是否可由 Electron 安全接入 |
 | Format > Font | 字体系列选择器可输入、预览并保存，应用于编辑器和打印；字体类型按语法默认（general 标准、code 等宽），设置面板与菜单支持覆写/恢复 Mode 默认；字号和连字已有菜单项 | Electron 不能枚举或校验各操作系统的已安装字体；未安装时浏览器依当前语法字体栈回退。没有 NSFontPanel 控件与 Antialias 原生开关，后者保持平台差异 |

@@ -158,6 +158,11 @@ test('Substitutions exposes manual and opt-in automatic local Replace Text rules
   assert.match(index, /id="text-replacement-automatic"/);
   assert.match(renderer, /automatic: \$\('#text-replacement-automatic'\)\.checked/);
   assert.match(renderer, /textReplacement: substitutionModeEnabled\('textReplacement', language\)/);
+  assert.match(renderer, /automaticPeriodSubstitution: substitutionModeEnabled\('automaticPeriod', language\)/);
+  assert.match(main, /id: 'menu-automatic-period', label: '双击空格插入句点', type: 'checkbox', click: \(\) => sendCommand\('menu:toggle-automatic-period'\)/);
+  assert.ok(preload.includes("'menu:toggle-automatic-period'"));
+  assert.match(renderer, /'menu:toggle-automatic-period': \(\) => toggleSubstitutionMode\('automaticPeriod'\)/);
+  assert.match(index, /id="automatic-period-language-setting"/);
   assert.match(renderer, /\$\('#text-replacement-form'\)\.addEventListener\('submit', saveTextReplacementManager\)/);
   assert.match(renderer, /\$\('#text-replacement-manager-dialog'\)\.addEventListener\('cancel',[\s\S]*?confirmDiscardTextReplacementDraft/);
   assert.match(renderer, /function saveTextReplacementManager\([\s\S]*?normalizeTextReplacements\(next\)/);

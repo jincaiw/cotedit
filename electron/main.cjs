@@ -592,7 +592,7 @@ function buildMenu() {
         { id: 'menu-smart-dashes', label: '智能破折号', type: 'checkbox', click: () => sendCommand('menu:toggle-smart-dashes') },
         { id: 'menu-automatic-text-replacement', label: '文本替换', type: 'checkbox', click: () => sendCommand('menu:toggle-text-replacement') },
         { id: 'menu-smart-copy-paste', label: '智能复制/粘贴', type: 'checkbox', enabled: false, toolTip: '当前编辑器没有 CotEditor 的文本视图智能空格行为。' },
-        { id: 'menu-automatic-period', label: '双击空格插入句点', type: 'checkbox', enabled: false, toolTip: '该行为依赖地区键盘与系统文本替换设置。' }
+        { id: 'menu-automatic-period', label: '双击空格插入句点', type: 'checkbox', click: () => sendCommand('menu:toggle-automatic-period') }
       ] },
       { label: '语音', submenu: [
         { id: 'menu-speech-start', label: '开始朗读', click: () => sendCommand('menu:speech-start') },

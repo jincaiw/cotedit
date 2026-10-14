@@ -19,19 +19,20 @@
 
 ### P1：模式设置和编辑输入
 
-- [x] 本轮实施：补齐按语法设置的智能引号、智能破折号、自动文本替换开关；在同一输入事务中转换直引号/双连字符，并可选择对单条本地替换规则启用输入时应用。旧规则默认保持手动，避免升级后突然改写输入。自动句点和 Smart Copy/Paste 仍是平台差异。
+- [x] 本轮实施：补齐按语法设置的智能引号、智能破折号、自动文本替换开关；在同一输入事务中转换直引号/双连字符，并可选择对单条本地替换规则启用输入时应用。旧规则默认保持手动，避免升级后突然改写输入。Apple 地区化替换与 Smart Copy/Paste 仍是平台差异。
 - [x] CotEditor Mode `fontType` 已按语法保存：general/纯文本默认标准、code 默认等宽；设置面板和 Format > Font 菜单共用覆盖，旧版全局选择保留为兼容映射，恢复 Mode 默认可清除单语法覆盖。
-- [ ] 继续核对 grammar checking、automatic spelling correction、smart insert/delete 与 automatic period substitution；跨平台系统语法服务/自动更正/地区标点接口按真实平台能力记录，逐项标注可用状态。
+- [x] CotEditor Mode 的 `automaticPeriodSubstitution` 已接入按语法设置，默认关闭；输入第二个连续空格时在单一编辑事务把前一空格变为句点，设置面板、Edit > Substitutions 菜单及设置文件均支持。应用内固定规则不依赖 Apple 地区化服务。grammar checking、automatic spelling correction 与 smart insert/delete 仍需逐项核对并按平台能力记录。
 - [ ] 逐项比对插入/删除、注释、选择、转换、查找替换和多重替换的菜单可用条件及 Undo/Redo 行为。
 - [x] 本轮实施：为每种语法加入输入时拼写检查选项、编辑器 `spellcheck` 行为、系统建议/添加词右键菜单，并在 Edit 菜单提供同步当前文稿状态的开关。Cocoa 语法检查、自动更正和拼写面板列为平台差异。
 
 ### P2：桌面菜单、快捷键和常用操作
 
 - [ ] 对上游菜单树逐项核对入口、顺序、分隔线、启用条件与复选状态；逐项对照快捷键注册表，覆盖平台映射、冲突和上下文分流。
+- [x] 本轮菜单实现：Edit > Substitutions 的“双击空格插入句点”按当前语法持久化并默认关闭；菜单勾选状态跟随语法设置。实现固定应用规则，不声称等同随地区变化的 Apple 文本替换。
 - [ ] 完成仍缺少的可移植操作，并为系统服务、设备协同、原生分享等平台专属功能定义真实平台实现或清楚的不可用状态。
 - [x] 本轮快捷键核对：移除上游没有静态快捷键的 Split Editor 默认 `CmdOrCtrl+Backslash`；焦点切换在 macOS 使用 Command+Backquote 和 Option+Command+Backquote，非 macOS 保留 Ctrl 系映射。
 - [x] 本轮菜单实现：View > Inspector 总开关同步四种现有检查器面板的可见状态；空闲时开启文稿检查器，已有面板时关闭当前面板；注册 `CmdOrCtrl+I` 并接入菜单及快捷键分派。
-- [x] 本轮菜单与设置：Substitutions 菜单复选状态绑定当前语法；自动替换词可逐条启用输入时应用。Smart Copy/Paste、双空格句点和原生替换面板作为明确平台限制显示禁用原因。
+- [x] 本轮菜单与设置：Substitutions 菜单复选状态绑定当前语法；自动替换词可逐条启用输入时应用。双空格句点现为可用的固定应用规则；Smart Copy/Paste 和原生替换面板仍显示明确的平台差异。
 - [x] 本轮菜单实现：Edit > Speech 提供开始/停止朗读；有选区时朗读主选区，否则朗读全文；菜单根据 Web Speech API、文稿和当前朗读状态启用/禁用。此为平台语音合成工作流，不声称等同 AppKit Speech 菜单。
 - [x] 本轮菜单实现：Help 新增 CotEdit 发行说明、报告问题和项目主页入口；URL 固定在主进程白名单，通过系统默认浏览器打开。
 - [ ] 核对菜单栏、工具栏、标签栏、侧栏、导航栏、检查器和对话框的焦点次序、键盘操作与动态播报；Electron UI smoke 已覆盖标签溢出菜单、分屏焦点、主要对话框和文件拖放管理器，其他控件及实体键盘仍待逐项审查。

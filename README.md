@@ -7,7 +7,13 @@ CotEdit 是跨平台桌面文本编辑器，不能将 Electron/CodeMirror 宣称
 ## 当前对齐状态
 
 - 对照 CotEditor 7.1.2 与上游 `main`（`f90e70a644d968e33d48cc6b8258e72a06957f32`）建立持续差异盘点和实施顺序，详见 [docs/parity-plan.md](docs/parity-plan.md)、[docs/menu-parity.md](docs/menu-parity.md) 与[兼容性记录](docs/compatibility.md)。跨平台项目仍有未完成的设置、菜单和目标系统实机验收；不宣称与 Cocoa 原生应用完全等价。
-- CotEdit 提供按语法拼写检查、智能引号/破折号、自动文本替换和系统字典右键建议；Edit > 语音可朗读选区/全文，Inspector 有总开关，Help 提供发行说明/问题报告入口。系统语法检查、自动更正、原生拼写/替换面板及 AppKit 语音菜单仍受平台接口限制。
+- CotEdit 提供按语法拼写检查、智能引号/破折号、双空格插入句点、自动文本替换和系统字典右键建议；Edit > 语音可朗读选区/全文，Inspector 有总开关，Help 提供发行说明/问题报告入口。系统语法检查、自动更正、原生拼写/替换面板及 AppKit 语音菜单仍受平台接口限制。
+
+## 1.0.6（2026-10-13）
+
+- 新增按语法控制的“双空格插入句点”，默认关闭，可在设置面板或 Edit > Substitutions 启用，并随设置文件导入/导出。启用时，仅在输入第二个空格后把前一个空格替换为句点；粘贴不触发。固定规则不随系统语言变化。
+- 更新 CotEditor Mode 差异记录和菜单勾选状态；不提供 Apple 地区化系统替换或 Smart Copy/Paste。
+- `npm test` **891/891** 通过；`npm run test:ui` **4/4** 通过，生产构建成功。
 
 ## 1.0.5（2026-10-13）
 
