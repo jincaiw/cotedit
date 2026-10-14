@@ -14,6 +14,7 @@ CotEdit 是跨平台桌面文本编辑器，不能将 Electron/CodeMirror 宣称
 - Mode 缩进选项新增按语法控制 Tab 输入：可跟随全局默认、展开为空格或插入制表符；明确选择优先于文稿缩进检测。设置面板可单独修改全局默认。
 - Format > Tab Width 菜单在有活动文稿时切换其语法选项，无文稿时切换全局偏好；设置面板也可直接编辑全局默认。设置可随偏好和设置文件保存。
 - `npm test` **893/893** 通过；`npm run test:ui` **4/4** 通过并完成生产构建。构建保留现有 bundle 大小提示。
+- [GitHub Actions run 38515509397](https://github.com/jincaiw/cotedit/actions/runs/38515509397) 三个平台全部通过；[v1.0.7 Release](https://github.com/jincaiw/cotedit/releases/tag/v1.0.7) 提供 Linux x64 DEB/AppImage、macOS ARM64 DMG/ZIP、Windows x64 EXE。
 
 ## 1.0.6（2026-10-13）
 
