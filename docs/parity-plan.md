@@ -15,13 +15,14 @@
 
 - [x] 核实稳定发行版、上游 `main` SHA 和 CotEdit 工作树状态。
 - [ ] 从 Main.storyboard、Mode/默认设置模型、文稿操作及帮助内容生成可逐项追踪的矩阵；清理 `docs/compatibility.md` 中 7.1.1/7.1.2 与历史工作树状态混杂的摘要。
+- [x] ModeOptions 矩阵已按 `f90e70a644d968e33d48cc6b8258e72a06957f32` 核对全部字段、general/code 默认值、CotEdit 实现及平台限制；历史 7.1.1 引用与当前 CotEdit 状态已在兼容性记录开头明确区分。详见 [Mode 选项逐项矩阵](mode-options-parity.md)。
 - [ ] 为每个差异标注：功能差异、交互差异、平台限制、快捷键差异、验证状态及上游证据。
 
 ### P1：模式设置和编辑输入
 
 - [x] 本轮实施：补齐按语法设置的智能引号、智能破折号、自动文本替换开关；在同一输入事务中转换直引号/双连字符，并可选择对单条本地替换规则启用输入时应用。旧规则默认保持手动，避免升级后突然改写输入。Apple 地区化替换与 Smart Copy/Paste 仍是平台差异。
 - [x] CotEditor Mode `fontType` 已按语法保存：general/纯文本默认标准、code 默认等宽；设置面板和 Format > Font 菜单共用覆盖，旧版全局选择保留为兼容映射，恢复 Mode 默认可清除单语法覆盖。
-- [x] CotEditor Mode 的 `automaticPeriodSubstitution` 已接入按语法设置，默认关闭；输入第二个连续空格时在单一编辑事务把前一空格变为句点，设置面板、Edit > Substitutions 菜单及设置文件均支持。应用内固定规则不依赖 Apple 地区化服务。grammar checking、automatic spelling correction 与 smart insert/delete 仍需逐项核对并按平台能力记录。
+- [x] CotEditor Mode `grammarChecking`、`automaticSpellingCorrection` 与 `smartInsertDelete` 已按上游模型和设置视图逐项核对，并在 [Mode 选项矩阵](mode-options-parity.md)记录：前两者依赖 Cocoa 系统拼写服务，后者是 NSTextView 智能复制/粘贴行为；CotEdit 没有跨平台等价接口，相关入口保持禁用/不提供。`automaticPeriodSubstitution` 已按语法接入，默认关闭并在单一输入事务将前一空格替换为句点；设置面板、菜单、偏好和设置文件均支持，规则不依赖 Apple 地区化服务。
 - [ ] 逐项比对插入/删除、注释、选择、转换、查找替换和多重替换的菜单可用条件及 Undo/Redo 行为。
 - [x] 本轮实施：为每种语法加入输入时拼写检查选项、编辑器 `spellcheck` 行为、系统建议/添加词右键菜单，并在 Edit 菜单提供同步当前文稿状态的开关。Cocoa 语法检查、自动更正和拼写面板列为平台差异。
 

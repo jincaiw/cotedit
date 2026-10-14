@@ -1,6 +1,9 @@
 # CotEdit 与 CotEditor 兼容性
 
-CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 跨平台实现。界面、菜单、快捷键和编辑操作按上游逐项核对；当前稳定基线为 CotEditor 7.1.2，上游 `main` 快照为 2026-10-13 的 `f90e70a644d968e33d48cc6b8258e72a06957f32`。源码级比对仍在推进，本页注明近似行为、缺项、平台实现边界和验证状态。执行顺序见[对齐实施计划](parity-plan.md)。
+CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 跨平台实现。界面、菜单、快捷键和编辑操作按上游逐项核对；当前稳定基线为 CotEditor 7.1.2，上游 `main` 快照为 2026-10-13 的 `f90e70a644d968e33d48cc6b8258e72a06957f32`。源码级比对仍在推进，本页注明近似行为、缺项、平台实现边界和验证状态。Mode 字段、默认值与当前支持状态另见[Mode 选项逐项矩阵](mode-options-parity.md)，执行顺序见[对齐实施计划](parity-plan.md)。
+
+本页保留按日期追加的历史核对记录；出现 CotEditor 7.1.1 的引用时，该版本通常是该条行为的历史证据，并不覆盖本页开头的当前基线。历史段落中的 CotEdit 版本、测试计数、工作树状态和“未发行”表述只对其记录日期有效；当前版本及验收结果以 [README 版本记录](../README.md)、[实施计划](parity-plan.md)和本页“功能对应”表为准。
+
 
 **CotEdit 1.0.6 双空格句点：**当前语法可在设置面板或 Edit > Substitutions 单独启停，Mode 默认关闭；在 Unicode 字母/数字或闭合引号、括号后输入第二个空格时，将前一空格替换为句点，保留第二空格。只处理 `input.type` 单次插入，不处理粘贴，两个字符变化合并在同一 CodeMirror 事务。该规则是固定的应用内近似，不根据系统语言或键盘地区改变；CotEditor 实际调用 macOS 地区化系统服务。
 
