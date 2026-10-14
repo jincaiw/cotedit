@@ -16,7 +16,7 @@ use gpui_kit::component::{
     button::{Button, ButtonVariants as _},
     dialog::{DialogAction, DialogFooter},
     h_flex,
-    input::{self, Editor, EditorState, Input, InputEvent, InputState, Position},
+    input::{self, Editor, EditorState, Input, InputEvent, InputState, Position, TabSize},
     scroll::ScrollableElement as _,
     v_flex,
 };
@@ -81,6 +81,14 @@ fn same_file_path(first: &Path, second: &Path) -> bool {
             .is_some_and(|(first, second)| first == second)
 }
 
+fn default_tab_size() -> usize {
+    4
+}
+
+fn default_hard_tabs() -> bool {
+    true
+}
+
 #[derive(Clone, Default, Deserialize, Serialize)]
 struct PersistedDraft {
     path: Option<PathBuf>,
@@ -88,6 +96,10 @@ struct PersistedDraft {
     text: Option<String>,
     cursor_line: u32,
     cursor_column: u32,
+    #[serde(default = "default_tab_size")]
+    tab_size: usize,
+    #[serde(default = "default_hard_tabs")]
+    hard_tabs: bool,
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -211,6 +223,8 @@ actions!(
         HideOtherApplications,
         ShowApplication,
         ResetSyntaxAnalysis,
+        ToggleSpacesForIndentation,
+        CustomTabWidth,
         SetUtf8,
         SetUtf8Bom,
         SetUtf16Le,
@@ -241,6 +255,12 @@ struct SetSyntax {
     language: String,
 }
 
+#[derive(Clone, PartialEq, Action)]
+#[action(no_json)]
+struct SetTabWidth {
+    width: usize,
+}
+
 struct Document {
     editor: Entity<EditorState>,
     path: Option<PathBuf>,
@@ -256,6 +276,8 @@ struct Document {
     show_line_numbers: bool,
     show_whitespaces: bool,
     soft_wrap: bool,
+    tab_size: usize,
+    hard_tabs: bool,
     _subscription: Subscription,
 }
 
@@ -293,6 +315,8 @@ struct MenuState {
     line_numbers: bool,
     invisibles: bool,
     soft_wrap: bool,
+    tab_size: usize,
+    hard_tabs: bool,
     language: String,
     encoding: TextEncoding,
     line_ending: LineEnding,
@@ -306,6 +330,8 @@ impl Default for MenuState {
             line_numbers: true,
             invisibles: false,
             soft_wrap: true,
+            tab_size: 4,
+            hard_tabs: true,
             language: "plaintext".to_owned(),
             encoding: TextEncoding::Utf8 { bom: false },
             line_ending: LineEnding::Lf,
@@ -429,6 +455,8 @@ impl CotEdit {
                         text: (text.as_ref() != document.saved_text).then(|| text.to_string()),
                         cursor_line: cursor.line,
                         cursor_column: cursor.character,
+                        tab_size: document.tab_size,
+                        hard_tabs: document.hard_tabs,
                     }
                 })
                 .collect(),
@@ -509,8 +537,19 @@ impl CotEdit {
                 self.add_document(None, DecodedDocument::default(), None, window, cx);
                 self.documents.len() - 1
             });
+            let tab_size = draft.tab_size.clamp(1, 99);
+            let hard_tabs = draft.hard_tabs;
+            self.documents[index].tab_size = tab_size;
+            self.documents[index].hard_tabs = hard_tabs;
             let editor = self.documents[index].editor.clone();
             editor.update(cx, |editor, cx| {
+                editor.set_tab_size(
+                    TabSize {
+                        tab_size,
+                        hard_tabs,
+                    },
+                    cx,
+                );
                 if let Some(text) = draft.text.as_deref() {
                     editor.set_value(text, window, cx);
                 }
@@ -546,6 +585,10 @@ impl CotEdit {
         let text = decoded.text;
         let editor = cx.new(|cx| {
             EditorState::new(window, cx)
+                .tab_size(TabSize {
+                    tab_size: 4,
+                    hard_tabs: true,
+                })
                 .language(language)
                 .line_number(true)
                 .indent_guides(true)
@@ -574,6 +617,8 @@ impl CotEdit {
             show_line_numbers: true,
             show_whitespaces: false,
             soft_wrap: true,
+            tab_size: 4,
+            hard_tabs: true,
             _subscription: subscription,
         });
         self.active = self.documents.len() - 1;
@@ -593,6 +638,8 @@ impl CotEdit {
             line_numbers: document.show_line_numbers,
             invisibles: document.show_whitespaces,
             soft_wrap: document.soft_wrap,
+            tab_size: document.tab_size,
+            hard_tabs: document.hard_tabs,
             language: document.language.clone(),
             encoding: document.encoding,
             line_ending: document.line_ending,
@@ -628,6 +675,87 @@ impl CotEdit {
         self.editor().update(cx, |editor, cx| {
             editor.set_highlighter(language, cx);
         });
+    }
+
+    fn set_tab_width(&mut self, action: &SetTabWidth, _: &mut Window, cx: &mut Context<Self>) {
+        let document = &mut self.documents[self.active];
+        document.tab_size = action.width.clamp(1, 99);
+        let tab_size = document.tab_size;
+        let hard_tabs = document.hard_tabs;
+        self.editor().update(cx, |editor, cx| {
+            editor.set_tab_size(
+                TabSize {
+                    tab_size,
+                    hard_tabs,
+                },
+                cx,
+            );
+        });
+        install_menus(cx, self.menu_state());
+        self.persist_session(cx);
+        cx.notify();
+    }
+
+    fn custom_tab_width(
+        &mut self,
+        _: &CustomTabWidth,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let current_width = self.documents[self.active].tab_size;
+        let input =
+            cx.new(|cx| InputState::new(window, cx).default_value(current_width.to_string()));
+        let weak = cx.entity().downgrade();
+        window.open_dialog(cx, move |dialog, _, _| {
+            let input = input.clone();
+            let weak = weak.clone();
+            dialog
+                .title("Custom Tab Width")
+                .child(
+                    v_flex()
+                        .gap_2()
+                        .child("Enter a width from 1 to 99 columns.")
+                        .child(Input::new(&input).id("custom-tab-width")),
+                )
+                .on_ok(move |_, window, cx| {
+                    let Ok(width) = input.read(cx).value().trim().parse::<usize>() else {
+                        window.push_notification("Enter a tab width from 1 to 99", cx);
+                        return false;
+                    };
+                    if !(1..=99).contains(&width) {
+                        window.push_notification("Enter a tab width from 1 to 99", cx);
+                        return false;
+                    }
+                    let _ = weak.update(cx, |this, cx| {
+                        this.set_tab_width(&SetTabWidth { width }, window, cx)
+                    });
+                    true
+                })
+        });
+    }
+
+    fn toggle_spaces_for_indentation(
+        &mut self,
+        _: &ToggleSpacesForIndentation,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let document = &mut self.documents[self.active];
+        document.hard_tabs = !document.hard_tabs;
+        let tab_size = document.tab_size;
+        let hard_tabs = document.hard_tabs;
+        self.editor().update(cx, |editor, cx| {
+            editor.set_tab_size(
+                TabSize {
+                    tab_size,
+                    hard_tabs,
+                },
+                cx,
+            );
+        });
+        install_menus(cx, self.menu_state());
+        self.persist_session(cx);
+        cx.notify();
     }
 
     fn set_syntax(&mut self, action: &SetSyntax, _: &mut Window, cx: &mut Context<Self>) {
@@ -1376,6 +1504,9 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::zoom_window))
             .on_action(cx.listener(Self::about))
             .on_action(cx.listener(Self::reset_syntax_analysis))
+            .on_action(cx.listener(Self::set_tab_width))
+            .on_action(cx.listener(Self::custom_tab_width))
+            .on_action(cx.listener(Self::toggle_spaces_for_indentation))
             .on_action(cx.listener(Self::set_syntax))
             .on_action(cx.listener(Self::open_help))
             .on_action(cx.listener(Self::report_issue))
@@ -1579,6 +1710,18 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Reset Syntax Analysis", ResetSyntaxAnalysis),
         ]),
         Menu::new("View").items([
+            MenuItem::submenu(
+                Menu::new("Tab Width").items([
+                    MenuItem::action("2", SetTabWidth { width: 2 }).checked(state.tab_size == 2),
+                    MenuItem::action("4", SetTabWidth { width: 4 }).checked(state.tab_size == 4),
+                    MenuItem::action("8", SetTabWidth { width: 8 }).checked(state.tab_size == 8),
+                    MenuItem::action("Custom…", CustomTabWidth),
+                    MenuItem::separator(),
+                    MenuItem::action("Use Spaces for Indentation", ToggleSpacesForIndentation)
+                        .checked(!state.hard_tabs),
+                ]),
+            ),
+            MenuItem::separator(),
             MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
             MenuItem::action("Show Invisibles", ToggleInvisibles).checked(state.invisibles),
             MenuItem::action("Wrap Lines", ToggleSoftWrap).checked(state.soft_wrap),
