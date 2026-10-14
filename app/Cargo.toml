@@ -1,0 +1,25 @@
+[package]
+name = "cotedit-gpui"
+version = "1.0.7"
+edition = "2024"
+description = "A cross-platform native text editor built with GPUI Kit"
+
+[dependencies]
+atomic-write-file = "0.3"
+gpui-kit = { version = "0.7.3", features = ["tree-sitter-languages"] }
+anyhow = "1"
+encoding_rs = "0.8"
+chardetng = "0.1"
+similar = "2"
+sha2 = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
