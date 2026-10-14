@@ -208,6 +208,7 @@ actions!(
         HideApplication,
         HideOtherApplications,
         ShowApplication,
+        ResetSyntaxAnalysis,
         SetUtf8,
         SetUtf8Bom,
         SetUtf16Le,
@@ -232,9 +233,16 @@ struct OpenRecentDocument {
     path: PathBuf,
 }
 
+#[derive(Clone, PartialEq, Action)]
+#[action(no_json)]
+struct SetSyntax {
+    language: String,
+}
+
 struct Document {
     editor: Entity<EditorState>,
     path: Option<PathBuf>,
+    language: String,
     saved_text: String,
     encoding: TextEncoding,
     saved_encoding: TextEncoding,
@@ -283,6 +291,7 @@ struct MenuState {
     line_numbers: bool,
     invisibles: bool,
     soft_wrap: bool,
+    language: String,
     encoding: TextEncoding,
     line_ending: LineEnding,
     recent_files: Vec<PathBuf>,
@@ -295,6 +304,7 @@ impl Default for MenuState {
             line_numbers: true,
             invisibles: false,
             soft_wrap: true,
+            language: "plaintext".to_owned(),
             encoding: TextEncoding::Utf8 { bom: false },
             line_ending: LineEnding::Lf,
             recent_files: Vec::new(),
@@ -550,6 +560,7 @@ impl CotEdit {
         self.documents.push(Document {
             editor,
             path,
+            language: language.to_owned(),
             saved_text: text,
             encoding: decoded.encoding,
             saved_encoding: decoded.encoding,
@@ -580,6 +591,7 @@ impl CotEdit {
             line_numbers: document.show_line_numbers,
             invisibles: document.show_whitespaces,
             soft_wrap: document.soft_wrap,
+            language: document.language.clone(),
             encoding: document.encoding,
             line_ending: document.line_ending,
             recent_files: self.recent_files.clone(),
@@ -602,6 +614,28 @@ impl CotEdit {
     fn new_tab(&mut self, _: &NewTab, window: &mut Window, cx: &mut Context<Self>) {
         self.add_document(None, DecodedDocument::default(), None, window, cx);
         self.persist_session(cx);
+    }
+
+    fn reset_syntax_analysis(
+        &mut self,
+        _: &ResetSyntaxAnalysis,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let language = self.documents[self.active].language.clone();
+        self.editor().update(cx, |editor, cx| {
+            editor.set_highlighter(language, cx);
+        });
+    }
+
+    fn set_syntax(&mut self, action: &SetSyntax, _: &mut Window, cx: &mut Context<Self>) {
+        self.documents[self.active].language = action.language.clone();
+        let language = action.language.clone();
+        self.editor().update(cx, |editor, cx| {
+            editor.set_highlighter(language, cx);
+        });
+        install_menus(cx, self.menu_state());
+        cx.notify();
     }
 
     fn open_help(&mut self, _: &OpenHelp, _: &mut Window, cx: &mut Context<Self>) {
@@ -1331,6 +1365,8 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::minimize_window))
             .on_action(cx.listener(Self::zoom_window))
             .on_action(cx.listener(Self::about))
+            .on_action(cx.listener(Self::reset_syntax_analysis))
+            .on_action(cx.listener(Self::set_syntax))
             .on_action(cx.listener(Self::open_help))
             .on_action(cx.listener(Self::report_issue))
             .on_action(cx.listener(Self::hide_application))
@@ -1392,6 +1428,7 @@ fn install_commands(cx: &mut App) {
         KeyBinding::new("secondary-g", FindNext, Some("Editor")),
         KeyBinding::new("secondary-shift-g", FindPrevious, Some("Editor")),
         KeyBinding::new("secondary-l", GoToLine, Some("Editor")),
+        KeyBinding::new("secondary-r", ResetSyntaxAnalysis, None),
         KeyBinding::new("cmd-m", MinimizeWindow, None),
         KeyBinding::new("cmd-h", HideApplication, None),
         KeyBinding::new("cmd-alt-h", HideOtherApplications, None),
@@ -1460,6 +1497,40 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::os_action("Select All", input::SelectAll, OsAction::SelectAll),
         ]),
         Menu::new("Format").items([
+            MenuItem::submenu(
+                Menu::new("Syntax").items(
+                    [
+                        ("Plain Text", "plaintext"),
+                        ("C", "c"),
+                        ("C++", "cpp"),
+                        ("CSS", "css"),
+                        ("Go", "go"),
+                        ("HTML", "html"),
+                        ("Java", "java"),
+                        ("JavaScript", "javascript"),
+                        ("JSON", "json"),
+                        ("Markdown", "markdown"),
+                        ("PHP", "php"),
+                        ("Python", "python"),
+                        ("Rust", "rust"),
+                        ("SQL", "sql"),
+                        ("TypeScript", "typescript"),
+                        ("XML", "xml"),
+                        ("YAML", "yaml"),
+                    ]
+                    .into_iter()
+                    .map(|(label, language)| {
+                        MenuItem::action(
+                            label,
+                            SetSyntax {
+                                language: language.to_owned(),
+                            },
+                        )
+                        .checked(state.language == language)
+                    }),
+                ),
+            ),
+            MenuItem::action("Reset Syntax Analysis", ResetSyntaxAnalysis),
             MenuItem::submenu(
                 Menu::new("Text Encoding").items([
                     MenuItem::action("UTF-8", SetUtf8)
