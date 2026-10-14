@@ -18,6 +18,7 @@ use gpui_kit::component::{
     h_flex,
     input::{self, Editor, EditorState, Input, InputEvent, InputState, Position},
     menu::{DropdownMenu, PopupMenuItem},
+    scroll::ScrollableElement as _,
     v_flex,
 };
 use gpui_kit::prelude::FluentBuilder as _;
@@ -181,6 +182,7 @@ fn language_for_path(path: Option<&Path>) -> &'static str {
 actions!(
     cotedit,
     [
+        NewDocument,
         NewTab,
         NewWindow,
         Open,
@@ -191,10 +193,15 @@ actions!(
         PreviousTab,
         Find,
         FindReplace,
+        FindNext,
+        FindPrevious,
         GoToLine,
         ToggleLineNumbers,
         ToggleInvisibles,
         ToggleSoftWrap,
+        MinimizeWindow,
+        ZoomWindow,
+        About,
         SetUtf8,
         SetUtf8Bom,
         SetUtf16Le,
@@ -259,6 +266,23 @@ impl Document {
     }
 }
 
+#[derive(Clone, Copy)]
+struct MenuState {
+    line_numbers: bool,
+    invisibles: bool,
+    soft_wrap: bool,
+}
+
+impl Default for MenuState {
+    fn default() -> Self {
+        Self {
+            line_numbers: true,
+            invisibles: false,
+            soft_wrap: true,
+        }
+    }
+}
+
 struct CotEdit {
     documents: Vec<Document>,
     active: usize,
@@ -267,6 +291,7 @@ struct CotEdit {
     window_session_id: String,
     session_revision: u64,
     focus_handle: FocusHandle,
+    _menu_focus_subscription: Option<Subscription>,
 }
 
 impl CotEdit {
@@ -285,12 +310,18 @@ impl CotEdit {
             window_session_id: saved_window.id.clone(),
             session_revision: 0,
             focus_handle: cx.focus_handle(),
+            _menu_focus_subscription: None,
         };
         let weak = cx.entity().downgrade();
         window.on_window_should_close(cx, move |window, cx| {
             weak.update(cx, |this, cx| this.request_close_window(window, cx))
                 .is_err()
         });
+        let weak = cx.entity().downgrade();
+        app._menu_focus_subscription =
+            Some(window.on_focus_in(&app.focus_handle, cx, move |_, cx| {
+                let _ = weak.update(cx, |this, cx| install_menus(cx, this.menu_state()));
+            }));
         app.add_document(None, DecodedDocument::default(), None, window, cx);
         if !saved_window.open_files.is_empty() {
             app.open_paths(saved_window.open_files, window, cx);
@@ -522,6 +553,15 @@ impl CotEdit {
         self.documents[self.active].editor.clone()
     }
 
+    fn menu_state(&self) -> MenuState {
+        let document = &self.documents[self.active];
+        MenuState {
+            line_numbers: document.show_line_numbers,
+            invisibles: document.show_whitespaces,
+            soft_wrap: document.soft_wrap,
+        }
+    }
+
     fn update_title(&self, window: &mut Window, cx: &App) {
         let document = &self.documents[self.active];
         let dirty = if document.is_dirty(cx) { "● " } else { "" };
@@ -529,9 +569,37 @@ impl CotEdit {
         window.set_window_edited(self.documents.iter().any(|doc| doc.is_dirty(cx)));
     }
 
+    fn new_document(&mut self, _: &NewDocument, window: &mut Window, cx: &mut Context<Self>) {
+        self.add_document(None, DecodedDocument::default(), None, window, cx);
+        self.persist_session(cx);
+    }
+
     fn new_tab(&mut self, _: &NewTab, window: &mut Window, cx: &mut Context<Self>) {
         self.add_document(None, DecodedDocument::default(), None, window, cx);
         self.persist_session(cx);
+    }
+
+    fn minimize_window(&mut self, _: &MinimizeWindow, window: &mut Window, _: &mut Context<Self>) {
+        window.minimize_window();
+    }
+
+    fn about(&mut self, _: &About, window: &mut Window, cx: &mut Context<Self>) {
+        window.open_dialog(cx, |dialog, _, _| {
+            dialog.title("About CotEdit").child(
+                v_flex()
+                    .gap_2()
+                    .child("CotEdit")
+                    .child("Cross-platform text editor")
+                    .child(format!(
+                        "GPUI preview · version {}",
+                        env!("CARGO_PKG_VERSION")
+                    )),
+            )
+        });
+    }
+
+    fn zoom_window(&mut self, _: &ZoomWindow, window: &mut Window, _: &mut Context<Self>) {
+        window.zoom_window();
     }
 
     fn new_window(&mut self, _: &NewWindow, _: &mut Window, cx: &mut Context<Self>) {
@@ -591,6 +659,7 @@ impl CotEdit {
             return;
         }
         self.active = ix;
+        install_menus(cx, self.menu_state());
         self.editor()
             .update(cx, |editor, cx| editor.focus(window, cx));
         self.update_title(window, cx);
@@ -735,6 +804,18 @@ impl CotEdit {
         }
     }
 
+    fn find_next(&mut self, _: &FindNext, _: &mut Window, cx: &mut Context<Self>) {
+        self.editor().update(cx, |editor, cx| {
+            editor.next_search_match(cx);
+        });
+    }
+
+    fn find_previous(&mut self, _: &FindPrevious, _: &mut Window, cx: &mut Context<Self>) {
+        self.editor().update(cx, |editor, cx| {
+            editor.previous_search_match(cx);
+        });
+    }
+
     fn go_to_line(&mut self, _: &GoToLine, window: &mut Window, cx: &mut Context<Self>) {
         let editor = self.editor();
         let cursor = editor.read(cx).cursor_position();
@@ -785,6 +866,7 @@ impl CotEdit {
         document.editor.update(cx, |editor, cx| {
             editor.set_line_number(visible, window, cx);
         });
+        install_menus(cx, self.menu_state());
     }
 
     fn toggle_invisibles(
@@ -799,6 +881,7 @@ impl CotEdit {
         document.editor.update(cx, |editor, cx| {
             editor.set_show_whitespaces(visible, window, cx);
         });
+        install_menus(cx, self.menu_state());
     }
 
     fn toggle_soft_wrap(
@@ -813,6 +896,7 @@ impl CotEdit {
         document.editor.update(cx, |editor, cx| {
             editor.set_soft_wrap(wrap, window, cx);
         });
+        install_menus(cx, self.menu_state());
     }
 
     fn set_encoding(
@@ -928,12 +1012,18 @@ impl CotEdit {
     }
 
     fn close_tab(&mut self, _: &CloseTab, window: &mut Window, cx: &mut Context<Self>) {
+        self.close_document(self.active, window, cx);
+    }
+
+    fn close_document(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if ix >= self.documents.len() {
+            return;
+        }
         if self.documents.len() == 1 {
             self.request_close_window(window, cx);
             return;
         }
-        if self.documents[self.active].is_dirty(cx) {
-            let ix = self.active;
+        if self.documents[ix].is_dirty(cx) {
             let answer = window.prompt(
                 PromptLevel::Warning,
                 "Discard changes to this document?",
@@ -950,7 +1040,7 @@ impl CotEdit {
             .detach_and_log_err(cx);
             return;
         }
-        self.remove_tab(self.active, window, cx);
+        self.remove_tab(ix, window, cx);
     }
 
     fn remove_tab(&mut self, ix: usize, window: &mut Window, cx: &mut Context<Self>) {
@@ -988,25 +1078,52 @@ impl CotEdit {
         let weak = cx.entity().downgrade();
         h_flex()
             .flex_none()
+            .w_full()
+            .items_center()
             .gap_1()
             .px_2()
             .py_1()
             .bg(cx.theme().secondary)
             .border_b_1()
             .border_color(cx.theme().border)
-            .children(self.documents.iter().enumerate().map(|(ix, document)| {
-                let selected = ix == self.active;
-                let title = format!(
-                    "{}{}",
-                    document.title(),
-                    if document.is_dirty(cx) { " •" } else { "" }
-                );
-                Button::new(("document-tab", ix))
-                    .small()
-                    .when(selected, |button| button.secondary())
-                    .label(title)
-                    .on_click(cx.listener(move |this, _, window, cx| this.activate(ix, window, cx)))
-            }))
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_x_scrollbar()
+                    .gap_1()
+                    .children(self.documents.iter().enumerate().map(|(ix, document)| {
+                        let selected = ix == self.active;
+                        let title = format!(
+                            "{}{}",
+                            document.title(),
+                            if document.is_dirty(cx) { " •" } else { "" }
+                        );
+                        h_flex()
+                            .flex_none()
+                            .items_center()
+                            .gap_0()
+                            .child(
+                                Button::new(("document-tab", ix))
+                                    .small()
+                                    .when(selected, |button| button.secondary())
+                                    .label(title)
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.activate(ix, window, cx)
+                                    })),
+                            )
+                            .child(
+                                Button::new(("close-document-tab", ix))
+                                    .small()
+                                    .ghost()
+                                    .label("×")
+                                    .tooltip("Close tab")
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.close_document(ix, window, cx)
+                                    })),
+                            )
+                    })),
+            )
             .child(
                 Button::new("new-document-tab")
                     .small()
@@ -1060,6 +1177,7 @@ impl Render for CotEdit {
             .size_full()
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
+            .on_action(cx.listener(Self::new_document))
             .on_action(cx.listener(Self::new_tab))
             .on_action(cx.listener(Self::new_window))
             .on_action(cx.listener(Self::open))
@@ -1095,6 +1213,11 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::toggle_line_numbers))
             .on_action(cx.listener(Self::toggle_invisibles))
             .on_action(cx.listener(Self::toggle_soft_wrap))
+            .on_action(cx.listener(Self::minimize_window))
+            .on_action(cx.listener(Self::zoom_window))
+            .on_action(cx.listener(Self::about))
+            .on_action(cx.listener(Self::find_next))
+            .on_action(cx.listener(Self::find_previous))
             .child(self.render_tabs(cx))
             .child(
                 h_flex().flex_1().min_h_0().items_stretch().child(
@@ -1132,29 +1255,45 @@ impl Render for CotEdit {
 
 fn install_commands(cx: &mut App) {
     cx.bind_keys([
-        KeyBinding::new("secondary-n", NewTab, None),
+        KeyBinding::new("secondary-n", NewDocument, None),
+        KeyBinding::new("secondary-shift-n", NewWindow, None),
+        KeyBinding::new("secondary-t", NewTab, None),
         KeyBinding::new("secondary-o", Open, None),
         KeyBinding::new("secondary-s", Save, None),
         KeyBinding::new("secondary-shift-s", SaveAs, None),
         KeyBinding::new("secondary-w", CloseTab, None),
+        KeyBinding::new("secondary-shift-[", PreviousTab, None),
+        KeyBinding::new("secondary-shift-]", NextTab, None),
         KeyBinding::new("ctrl-tab", NextTab, None),
         KeyBinding::new("ctrl-shift-tab", PreviousTab, None),
         KeyBinding::new("secondary-f", Find, Some("Editor")),
+        KeyBinding::new("secondary-g", FindNext, Some("Editor")),
+        KeyBinding::new("secondary-shift-g", FindPrevious, Some("Editor")),
         KeyBinding::new("secondary-l", GoToLine, Some("Editor")),
+        KeyBinding::new("cmd-m", MinimizeWindow, None),
         KeyBinding::new("secondary-q", Quit, None),
     ]);
-    // GPUI Kit snapshots the keymap into native menus at this point.
+    install_menus(cx, MenuState::default());
+}
+
+fn install_menus(cx: &mut App, state: MenuState) {
     cx.set_menus([
-        Menu::new("CotEdit").items([MenuItem::action("Quit CotEdit", Quit)]),
+        Menu::new("CotEdit").items([
+            MenuItem::action("About CotEdit", About),
+            MenuItem::separator(),
+            MenuItem::action("Quit CotEdit", Quit),
+        ]),
         Menu::new("File").items([
-            MenuItem::action("New Tab", NewTab),
+            MenuItem::action("New", NewDocument),
             MenuItem::action("New Window", NewWindow),
+            MenuItem::action("New Tab", NewTab),
+            MenuItem::separator(),
             MenuItem::action("Open…", Open),
             MenuItem::separator(),
             MenuItem::action("Save", Save),
             MenuItem::action("Save As…", SaveAs),
             MenuItem::separator(),
-            MenuItem::action("Close Tab", CloseTab),
+            MenuItem::action("Close", CloseTab),
         ]),
         Menu::new("Edit").items([
             MenuItem::os_action("Undo", input::Undo, OsAction::Undo),
@@ -1163,9 +1302,6 @@ fn install_commands(cx: &mut App) {
             MenuItem::os_action("Cut", input::Cut, OsAction::Cut),
             MenuItem::os_action("Copy", input::Copy, OsAction::Copy),
             MenuItem::os_action("Paste", input::Paste, OsAction::Paste),
-            MenuItem::separator(),
-            MenuItem::action("Find…", Find),
-            MenuItem::action("Find and Replace…", FindReplace),
             MenuItem::os_action("Select All", input::SelectAll, OsAction::SelectAll),
         ]),
         Menu::new("Format").items([
@@ -1188,22 +1324,26 @@ fn install_commands(cx: &mut App) {
                 MenuItem::action("Paragraph Separator", SetEolPs),
             ])),
         ]),
-        Menu::new("Find").items([
-            MenuItem::action("Find…", Find),
-            MenuItem::action("Find and Replace…", FindReplace),
-            MenuItem::action("Go to Line…", GoToLine),
+        Menu::new("View").items([
+            MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
+            MenuItem::action("Show Invisibles", ToggleInvisibles).checked(state.invisibles),
+            MenuItem::action("Wrap Lines", ToggleSoftWrap).checked(state.soft_wrap),
         ]),
         Menu::new("Text").items([
             MenuItem::action("Indent", input::Indent),
             MenuItem::action("Outdent", input::Outdent),
         ]),
-        Menu::new("View").items([
-            MenuItem::action("Show Line Numbers", ToggleLineNumbers),
-            MenuItem::action("Show Invisibles", ToggleInvisibles),
-            MenuItem::action("Wrap Lines", ToggleSoftWrap),
+        Menu::new("Find").items([
+            MenuItem::action("Find…", Find),
+            MenuItem::action("Find Next", FindNext),
+            MenuItem::action("Find Previous", FindPrevious),
+            MenuItem::action("Find and Replace…", FindReplace),
             MenuItem::separator(),
-            MenuItem::action("Next Tab", NextTab),
-            MenuItem::action("Previous Tab", PreviousTab),
+            MenuItem::action("Go to Line…", GoToLine),
+        ]),
+        Menu::new("Window").items([
+            MenuItem::action("Minimize", MinimizeWindow),
+            MenuItem::action("Zoom", ZoomWindow),
         ]),
     ]);
 }
