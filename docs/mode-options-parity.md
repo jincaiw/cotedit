@@ -1,8 +1,8 @@
 # CotEditor Mode 选项对齐矩阵
 
-本矩阵以 CotEditor 7.1.2 与上游快照 `f90e70a644d968e33d48cc6b8258e72a06957f32` 为基线。模式字段和 general/code 默认值来自该提交的 [`ModeOptions.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift)；控件范围来自同提交的 [`ModeSettingsView.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Settings%20Window/Panes/ModeSettingsView.swift)。CotEdit 状态描述当前 1.0.6 源码，发布信息见 [`parity-plan.md`](parity-plan.md)。
+本矩阵以 CotEditor 7.1.2 与上游快照 `f90e70a644d968e33d48cc6b8258e72a06957f32` 为基线。模式字段和 general/code 默认值来自该提交的 [`ModeOptions.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift)；控件范围来自同提交的 [`ModeSettingsView.swift`](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Settings%20Window/Panes/ModeSettingsView.swift)。CotEdit 状态描述当前 1.0.7 实现，发布信息见 [`parity-plan.md`](parity-plan.md)。
 
-“general/code”列为 CotEditor 内置 Mode 类别的默认值。`CompletionWordTypes` 的“standard/document/syntax”分别对应系统标准词典、当前文稿词和语法包词。
+“general/code”列为 CotEditor 内置 Mode 类别的默认值。`CompletionWordTypes` 的“standard/document/syntax”分别对应系统标准词典、当前文稿词和语法包词。CotEdit 一列描述 1.0.7 当前实现。
 
 | CotEditor Mode 字段 | general 默认 | code 默认 | CotEdit 当前实现与验证状态 |
 |---|---:|---:|---|
@@ -20,12 +20,12 @@
 | `completionWordTypes.document` | on | on | **已实现。**当前文稿词可按语法设置；general/code 默认均包含。 |
 | `completionWordTypes.syntax` | off | on | **近似实现。**语法包词可按语法设置；Code 类默认启用，Plain Text 默认关闭，导入 Mode 分类用于判定。 |
 | `automaticCompletion` | off | off | **默认值已对齐，设置粒度不同。**自动补全默认关闭；CotEdit 以全局开关和逐语法覆写控制，未提供独立的 Mode `automaticCompletion` 字段。 |
-| `indentOptions.expandsTab` | 未自定义 | 未自定义 | **部分对齐。**每种语法可在全局缩进与 Tab/空格宽度覆写之间选择；Tab 展开策略本身仍是全局偏好，不能为每个语法单独设定。 |
+| `indentOptions.expandsTab` | 未自定义 | 未自定义 | **已实现。**新增按语法“跟随模式默认/展开为空格/插入制表符”，显式设置优先于文稿缩进检测；跟随默认时检测结果优先于全局 `autoExpandTab`。设置面板可单独修改全局默认；有活动文稿时 Format 菜单切换当前语法覆写，无文稿时切换全局偏好。软 Tab 仍使用全局 Tab 显示宽度，和上游 Mode `width` 的组合行为有差异。 |
 | `indentOptions.width` | 未自定义 | 未自定义 | **部分对齐。**每种语法可选 Tab 或 1–99 列空格缩进，并可恢复全局设置；CotEdit 的 Tab 显示宽度仍独立且全局，与上游 Mode 的 `width` 并非同一字段。 |
 
 ## 证据与边界
 
 - CotEditor Mode 分类的默认值是 `Syntax.Kind.defaultOptions`；导入的语法 Mode 可提供 `general` 或 `code` 分类。CotEdit 对内置语法及导入语法分别使用其分类或现有回退规则，未声称所有语法包分类完全覆盖。
-- CotEdit 相关实现主要位于 [`src/main.js`](../src/main.js)、[`lib/settings.js`](../lib/settings.js)、[`lib/automatic-substitutions.js`](../lib/automatic-substitutions.js) 与 [`index.html`](../index.html)。逐项自动化覆盖分散在 `test/settings.test.js`、`test/settings-file.test.js`、`test/automatic-substitutions.test.js`、`test/menu-state.test.js`、`test/menu-coverage.test.js` 和 `test/electron-ui-smoke.cjs`。
+- CotEdit 相关实现主要位于 [`src/main.js`](../src/main.js)、[`lib/settings.js`](../lib/settings.js)、[`lib/automatic-substitutions.js`](../lib/automatic-substitutions.js) 与 [`index.html`](../index.html)。逐项自动化覆盖分散在 `test/settings.test.js`、`test/settings-file.test.js`、`test/indent-style-detection.test.js`、`test/automatic-substitutions.test.js`、`test/menu-state.test.js`、`test/menu-coverage.test.js` 和 `test/electron-ui-smoke.cjs`。
 - 1.0.6 发布时 Node 单测 891/891、Electron UI smoke 4/4、生产构建和变更 JavaScript 语法检查通过。这些验证证明 CotEdit 路由和桌面烟测覆盖范围，不证明 macOS 原生文本服务或 VoiceOver 行为等价。
 - CotEditor 7.1.1 的引用仍保留在兼容性记录中，用来标注当时的源码依据或历史改动；历史段落中出现的旧版本号、测试计数和“未发行”状态属于当时记录，不代表 CotEdit 当前版本。当前版本和发布结果以 README 版本记录、功能对应表及本文矩阵为准。

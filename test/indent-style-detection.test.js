@@ -33,6 +33,10 @@ test('detected styles override ordinary Tab insertion while inconclusive documen
   assert.equal(resolveTabInsertionMode(null, true, 'tab'), 'soft-tabs');
   assert.equal(resolveTabInsertionMode(null, false, 'tab'), 'tab');
   assert.equal(resolveTabInsertionMode(null, false, '4'), 'syntax');
+  assert.equal(resolveTabInsertionMode('spaces', false, 'tab', false), 'tab', 'an explicit Mode choice wins over detected document style');
+  assert.equal(resolveTabInsertionMode('tabs', false, '4', true), 'soft-tabs');
+  assert.equal(resolveTabInsertionMode(null, false, 'tab', true), 'soft-tabs');
+  assert.equal(resolveTabInsertionMode(null, true, '4', false), 'tab');
   assert.equal(effectiveAutoExpandTab('spaces', false), true);
   assert.equal(effectiveAutoExpandTab('tabs', true), false);
   assert.equal(effectiveAutoExpandTab(null, true), true);
@@ -41,10 +45,15 @@ test('detected styles override ordinary Tab insertion while inconclusive documen
 test('CotEditor default preference and open-document Tab routing are wired without a new shortcut', () => {
   assert.match(settings, /detectsIndentStyle: true/);
   assert.match(settings, /detectsIndentStyle: typeof value\.detectsIndentStyle === 'boolean' \? value\.detectsIndentStyle : DEFAULT_SETTINGS\.detectsIndentStyle/);
+  assert.match(settings, /autoExpandTab: false/);
+  assert.match(settings, /autoExpandTabByLanguage: Object\.freeze\(\{\}\)/);
+  assert.match(settings, /normalizeLanguageBooleanOverrides\(value\.autoExpandTabByLanguage\)/);
   assert.match(html, /id="detect-indent-style-setting"/);
+  assert.match(html, /id="auto-expand-tab-setting"/);
+  assert.match(html, /id="tab-expansion-language-setting"/);
   assert.match(renderer, /saved && settings\.detectsIndentStyle \? detectIndentStyle\(originalText\) : null/);
-  assert.match(renderer, /resolveTabInsertionMode\(doc\?\.detectedIndentStyle, settings\.autoExpandTab, indentationFor\(doc\)\)/);
-  assert.match(renderer, /effectiveAutoExpandTab\(activeDoc\?\.detectedIndentStyle, settings\.autoExpandTab\)/);
-  assert.match(renderer, /'menu:auto-expand-tab': \(\) => \{[\s\S]*activeDoc\.detectedIndentStyle = null[\s\S]*settings\.autoExpandTab = !current/);
+  assert.match(renderer, /resolveTabInsertionMode\(doc\?\.detectedIndentStyle, settings\.autoExpandTab, indentationFor\(doc\), autoExpandTabOverrideForLanguage\(settings, doc\?\.language\)\)/);
+  assert.match(renderer, /effectiveAutoExpandTab\(doc\?\.detectedIndentStyle, settings\.autoExpandTab\)/);
+  assert.match(renderer, /'menu:auto-expand-tab': \(\) => \{[\s\S]*settings\.autoExpandTabByLanguage = setAutoExpandTabOverride[\s\S]*else settings\.autoExpandTab = !current/);
   assert.match(renderer, /detect-indent-style-setting'[\s\S]*settings\.detectsIndentStyle = event\.target\.checked/);
 });

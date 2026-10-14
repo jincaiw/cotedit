@@ -23,6 +23,7 @@
 - [x] 本轮实施：补齐按语法设置的智能引号、智能破折号、自动文本替换开关；在同一输入事务中转换直引号/双连字符，并可选择对单条本地替换规则启用输入时应用。旧规则默认保持手动，避免升级后突然改写输入。Apple 地区化替换与 Smart Copy/Paste 仍是平台差异。
 - [x] CotEditor Mode `fontType` 已按语法保存：general/纯文本默认标准、code 默认等宽；设置面板和 Format > Font 菜单共用覆盖，旧版全局选择保留为兼容映射，恢复 Mode 默认可清除单语法覆盖。
 - [x] CotEditor Mode `grammarChecking`、`automaticSpellingCorrection` 与 `smartInsertDelete` 已按上游模型和设置视图逐项核对，并在 [Mode 选项矩阵](mode-options-parity.md)记录：前两者依赖 Cocoa 系统拼写服务，后者是 NSTextView 智能复制/粘贴行为；CotEdit 没有跨平台等价接口，相关入口保持禁用/不提供。`automaticPeriodSubstitution` 已按语法接入，默认关闭并在单一输入事务将前一空格替换为句点；设置面板、菜单、偏好和设置文件均支持，规则不依赖 Apple 地区化服务。
+- [x] CotEditor Mode `indentOptions.expandsTab` 已增加逐语法继承/展开为空格/插入制表符设置，显式语法值优先于文稿缩进检测；菜单在活动文稿内切换语法覆写、无文稿时切换全局值。`indentOptions.width` 与全局 Tab 显示宽度仍有字段语义差异，详见 [Mode 选项矩阵](mode-options-parity.md)。
 - [ ] 逐项比对插入/删除、注释、选择、转换、查找替换和多重替换的菜单可用条件及 Undo/Redo 行为。
 - [x] 本轮实施：为每种语法加入输入时拼写检查选项、编辑器 `spellcheck` 行为、系统建议/添加词右键菜单，并在 Edit 菜单提供同步当前文稿状态的开关。Cocoa 语法检查、自动更正和拼写面板列为平台差异。
 

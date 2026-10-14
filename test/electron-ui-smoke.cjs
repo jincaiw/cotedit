@@ -241,6 +241,8 @@ test('Electron renderer exposes a labelled tabpanel and maintains keyboard/focus
       { role: 'checkbox', name: '使用字体连字' },
       { role: 'button', name: '选择字体…' },
       { role: 'combobox', name: '当前语法字体类型' },
+      { role: 'checkbox', name: '全局默认：Tab 展开为空格' },
+      { role: 'combobox', name: '当前语法 Tab 输入' },
       { role: 'combobox', name: '当前语法双空格插入句点' },
       { role: 'combobox', name: '新文稿默认书写方向' }
     ]);
@@ -250,6 +252,39 @@ test('Electron renderer exposes a labelled tabpanel and maintains keyboard/focus
     await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).fontTypeByLanguage.plaintext === "monospaced" && document.documentElement.dataset.fontType === "monospaced"'), 'font type override applies to the current syntax');
     await client.evaluate(`(() => { const select = document.querySelector('#font-type-language-setting'); select.value = 'mode-default'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
     await waitFor(async () => client.evaluate('!JSON.parse(localStorage.getItem("cotedit.settings.v1")).fontTypeByLanguage.plaintext && document.documentElement.dataset.fontType === "standard"'), 'font type can return to the current syntax Mode default');
+    assert.equal(await client.evaluate('document.querySelector("#tab-expansion-language-setting").value'), 'mode-default', 'Tab expansion follows the global setting by default');
+    assert.equal(await client.evaluate('document.querySelector("#auto-expand-tab-setting").checked'), false, 'the global Tab expansion default is off');
+    await client.evaluate(`(() => { const input = document.querySelector('#auto-expand-tab-setting'); input.checked = true; input.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).autoExpandTab === true'), 'global Tab expansion preference is saved');
+    await client.evaluate('document.querySelector("#editor .cm-content").focus(); true');
+    await client.send('Input.insertText', { text: 'x' });
+    await client.key('Tab', 'Tab', 9);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), 'x   ', 'the inherited global preference expands Tab');
+    await client.key('Backspace', 'Backspace', 8);
+    await client.key('Backspace', 'Backspace', 8);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), '', 'the inherited-global input check restores an empty document');
+    await client.evaluate(`(() => { const input = document.querySelector('#auto-expand-tab-setting'); input.checked = false; input.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).autoExpandTab === false'), 'global Tab expansion preference returns to off');
+    await client.evaluate(`(() => { const select = document.querySelector('#tab-expansion-language-setting'); select.value = 'on'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).autoExpandTabByLanguage.plaintext === true'), 'Tab expansion preference is saved per syntax');
+    await client.evaluate('document.querySelector("#editor .cm-content").focus(); true');
+    await client.send('Input.insertText', { text: 'x' });
+    await client.key('Tab', 'Tab', 9);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), 'x   ', 'the syntax override expands Tab to the next soft-tab stop');
+    await client.key('Backspace', 'Backspace', 8);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), 'x', 'soft Backspace removes the inserted spaces as one unit');
+    await client.key('Backspace', 'Backspace', 8);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), '', 'the test restores an empty document');
+    await client.evaluate(`(() => { const select = document.querySelector('#tab-expansion-language-setting'); select.value = 'off'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await client.evaluate('document.querySelector("#editor .cm-content").focus(); true');
+    await client.send('Input.insertText', { text: 'x' });
+    await client.key('Tab', 'Tab', 9);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), 'x\t', 'the syntax override inserts a literal Tab');
+    await client.key('Backspace', 'Backspace', 8);
+    await client.key('Backspace', 'Backspace', 8);
+    assert.equal(await client.evaluate('document.querySelector("#editor .cm-content").textContent'), '', 'literal Tab and its prefix are removable');
+    await client.evaluate(`(() => { const select = document.querySelector('#tab-expansion-language-setting'); select.value = 'mode-default'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
+    await waitFor(async () => !await client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).autoExpandTabByLanguage.plaintext'), 'Tab expansion preference returns to the global fallback');
     assert.equal(await client.evaluate('document.querySelector("#automatic-period-language-setting").value'), 'mode-default', 'double-space period substitution follows the disabled Mode default');
     await client.evaluate(`(() => { const select = document.querySelector('#automatic-period-language-setting'); select.value = 'on'; select.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`);
     await waitFor(async () => client.evaluate('JSON.parse(localStorage.getItem("cotedit.settings.v1")).automaticPeriodSubstitutionByLanguage.plaintext === true'), 'double-space period preference is saved per syntax');

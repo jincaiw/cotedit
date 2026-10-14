@@ -178,7 +178,7 @@ test('navigation, tab and toolbar visibility remain available without a document
   assert.equal(states['menu-close-split'].enabled, false);
 });
 
-test('Use Spaces for Indentation remains a global menu preference and reflects its setting', () => {
+test('Use Spaces menu state reflects the effective active document setting', () => {
   assert.deepEqual(getMenuItemStates({})['menu-auto-expand-tab'], { enabled: true, checked: false });
   assert.deepEqual(getMenuItemStates({ autoExpandTab: true })['menu-auto-expand-tab'], { enabled: true, checked: true });
   assert.deepEqual(getMenuItemStates({ hasDocument: true, autoExpandTab: false })['menu-auto-expand-tab'], { enabled: true, checked: false });

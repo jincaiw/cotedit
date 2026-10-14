@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, DEFAULT_SETTINGS, fontTypeForLanguage, normalizeKeyBindings, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride, setFontTypeOverride } from '../lib/settings.js';
+import { autoCompletionEnabledForLanguage, autoExpandTabOverrideForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, DEFAULT_SETTINGS, fontTypeForLanguage, normalizeKeyBindings, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutoExpandTabOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride, setFontTypeOverride } from '../lib/settings.js';
 
 test('settings default safely for malformed storage values', () => {
   assert.deepEqual(normalizeSettings(null), { ...DEFAULT_SETTINGS });
@@ -137,6 +137,22 @@ test('Use Spaces for Indentation defaults off and accepts only an explicit boole
   assert.equal(normalizeSettings({ autoExpandTab: true }).autoExpandTab, true);
   assert.equal(normalizeSettings({ autoExpandTab: false }).autoExpandTab, false);
   assert.equal(normalizeSettings({ autoExpandTab: 'yes' }).autoExpandTab, false);
+});
+
+test('per-syntax Tab expansion inherits the global default and supports overrides or reset', () => {
+  assert.deepEqual(DEFAULT_SETTINGS.autoExpandTabByLanguage, {});
+  const defaults = normalizeSettings({ autoExpandTab: false });
+  assert.equal(autoExpandTabOverrideForLanguage(defaults, 'javascript'), null);
+  const withSpaceExpansion = {
+    ...defaults,
+    autoExpandTabByLanguage: setAutoExpandTabOverride(defaults.autoExpandTabByLanguage, 'javascript', true)
+  };
+  assert.equal(autoExpandTabOverrideForLanguage(withSpaceExpansion, 'javascript'), true);
+  assert.equal(autoExpandTabOverrideForLanguage(withSpaceExpansion, 'python'), null);
+  const withLiteralTabs = setAutoExpandTabOverride(withSpaceExpansion.autoExpandTabByLanguage, 'javascript', false);
+  assert.equal(autoExpandTabOverrideForLanguage({ ...withSpaceExpansion, autoExpandTabByLanguage: withLiteralTabs }, 'javascript'), false);
+  assert.deepEqual(setAutoExpandTabOverride(withLiteralTabs, 'javascript', null), {});
+  assert.deepEqual(setAutoExpandTabOverride({}, '../bad', true), {});
 });
 
 test('automatic indentation defaults on and accepts only an explicit boolean', () => {

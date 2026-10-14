@@ -168,13 +168,13 @@ test('Format Font Type matches CotEditor Standard/Monospaced actions without inv
   assert.ok(!shortcuts.some(item => item.id === 'fontType'), 'CotEditor declares no default shortcut for Font Type');
 });
 
-test('Format Tab Width includes CotEditor Use Spaces for Indentation without a shortcut', () => {
+test('Format Tab Width Use Spaces toggles the active syntax override or the global fallback without a shortcut', () => {
   const menu = main.slice(main.indexOf('const tabWidthItems ='), main.indexOf('const themeItems ='));
   assert.match(menu, /id: 'menu-auto-expand-tab', label: '使用空格缩进', type: 'checkbox'/);
   assert.ok(menu.indexOf("id: 'menu-auto-expand-tab'") > menu.indexOf("id: 'menu-tab-width-custom'"));
   assert.ok(main.includes("sendCommand('menu:auto-expand-tab')"));
   assert.ok(preload.includes("'menu:auto-expand-tab'"));
-  assert.match(renderer, /'menu:auto-expand-tab': \(\) => \{[\s\S]*activeDoc\.detectedIndentStyle = null[\s\S]*settings\.autoExpandTab = !current/);
+  assert.match(renderer, /'menu:auto-expand-tab': \(\) => \{[\s\S]*settings\.autoExpandTabByLanguage = setAutoExpandTabOverride[\s\S]*else settings\.autoExpandTab = !current/);
   assert.doesNotMatch(menu.match(/\{ id: 'menu-auto-expand-tab'[^\n]*/)?.[0] || '', /accelerator:/);
 });
 

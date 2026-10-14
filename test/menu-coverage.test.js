@@ -761,13 +761,14 @@ test('Format > Tab Width exposes CotEditor Use Spaces for Indentation as a persi
   assert.match(tabWidthMenu, /id: 'menu-tab-width-custom'[\s\S]*?id: 'menu-auto-expand-tab', label: '使用空格缩进', type: 'checkbox'/);
   assert.match(tabWidthMenu, /sendCommand\('menu:auto-expand-tab'\)/);
   assert.ok(preload.includes("'menu:auto-expand-tab'"));
-  assert.match(renderer, /'menu:auto-expand-tab': \(\) => \{[\s\S]*activeDoc\.detectedIndentStyle = null[\s\S]*settings\.autoExpandTab = !current/);
-  assert.match(renderer, /autoExpandTab: effectiveAutoExpandTab\(activeDoc\?\.detectedIndentStyle, settings\.autoExpandTab\)/);
+  assert.match(renderer, /'menu:auto-expand-tab': \(\) => \{[\s\S]*settings\.autoExpandTabByLanguage = setAutoExpandTabOverride[\s\S]*else settings\.autoExpandTab = !current/);
+  assert.match(renderer, /autoExpandTab: autoExpandTabForDocument\(\)/);
   assert.match(renderer, /if \(insertionMode === 'soft-tabs'\) return insertSoftTab\(view, settings\.tabWidth\)/);
   assert.match(renderer, /Prec\.highest\(keymap\.of\(\[\s*\{ key: 'Backspace', run: view => tabInsertionMode\(\) === 'soft-tabs' && deleteSoftTab\(view, settings\.tabWidth\) \},\s*\{ key: 'Shift-Tab', run: view => handleSelectedLinesTab\(view, settings\.indentWithTabKey, true\) \}\s*\]\)\)/);
   assert.match(renderer, /if \(handleSelectedLinesTab\(view, settings\.indentWithTabKey\)\) return true/);
   assert.match(readFileSync(new URL('../lib/settings.js', import.meta.url), 'utf8'), /indentWithTabKey: typeof value\.indentWithTabKey === 'boolean' \? value\.indentWithTabKey : DEFAULT_SETTINGS\.indentWithTabKey/);
   assert.match(readFileSync(new URL('../lib/settings.js', import.meta.url), 'utf8'), /autoExpandTab: typeof value\.autoExpandTab === 'boolean' \? value\.autoExpandTab : DEFAULT_SETTINGS\.autoExpandTab/);
+  assert.match(readFileSync(new URL('../lib/settings.js', import.meta.url), 'utf8'), /const autoExpandTabByLanguage = normalizeLanguageBooleanOverrides\(value\.autoExpandTabByLanguage\)/);
   assert.match(readFileSync(new URL('../lib/settings.js', import.meta.url), 'utf8'), /detectsIndentStyle: typeof value\.detectsIndentStyle === 'boolean' \? value\.detectsIndentStyle : DEFAULT_SETTINGS\.detectsIndentStyle/);
   const item = tabWidthMenu.match(/\{ id: 'menu-auto-expand-tab'[^\n]*/)?.[0] || '';
   assert.doesNotMatch(item, /accelerator:/, 'CotEditor declares no default shortcut for this preference');

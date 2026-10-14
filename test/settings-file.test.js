@@ -64,6 +64,11 @@ test('settings export/import preserves Use Spaces for Indentation and normalizes
   assert.equal(parseSettingsFile(serializeSettingsFile({ autoExpandTab: 'yes' })).autoExpandTab, false);
 });
 
+test('settings export/import preserves per-syntax Tab expansion overrides', () => {
+  assert.deepEqual(parseSettingsFile(serializeSettingsFile({ autoExpandTabByLanguage: { javascript: true, python: false } })).autoExpandTabByLanguage, { javascript: true, python: false });
+  assert.deepEqual(parseSettingsFile(serializeSettingsFile({ autoExpandTabByLanguage: { 'bad key': true, yaml: 'yes' } })).autoExpandTabByLanguage, {});
+});
+
 test('settings export/import preserves automatic indentation and normalizes invalid values', () => {
   assert.equal(parseSettingsFile(serializeSettingsFile({ autoIndent: true })).autoIndent, true);
   assert.equal(parseSettingsFile(serializeSettingsFile({ autoIndent: false })).autoIndent, false);

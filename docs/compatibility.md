@@ -5,6 +5,8 @@ CotEditor 是 Swift/Cocoa 原生 macOS 应用，CotEdit 是 Electron/CodeMirror 
 本页保留按日期追加的历史核对记录；出现 CotEditor 7.1.1 的引用时，该版本通常是该条行为的历史证据，并不覆盖本页开头的当前基线。历史段落中的 CotEdit 版本、测试计数、工作树状态和“未发行”表述只对其记录日期有效；当前版本及验收结果以 [README 版本记录](../README.md)、[实施计划](parity-plan.md)和本页“功能对应”表为准。
 
 
+**CotEdit 1.0.7 增量（Mode `indentOptions.expandsTab`）：**依据 CotEditor 7.1.2 的 `ModeOptions.IndentOptions` 与 Mode 设置视图，CotEdit 增加逐语法“跟随模式默认/展开为空格/插入制表符”，并随现有设置文件导入/导出保存。显式语法值覆盖文稿缩进样式检测；选择“跟随模式默认”时，文稿检测结果优先于全局 `autoExpandTab`。Format > Tab Width 菜单有活动文稿时切换该语法覆写，没有文稿时切换全局偏好；设置面板另有全局默认复选框。展开型软 Tab 仍按 CotEdit 的全局 Tab 显示宽度计算；CotEditor Mode 的 `width` 会与 `expandsTab` 一同作用于文本视图，CotEdit 仍保留独立的逐语法缩进宽度和全局显示宽度，因此两项组合尚未完全等价。`npm test` 893/893、Electron UI smoke 4/4 和生产构建通过；构建报告 bundle 超过 500 kB 的既有提示。改动依据：[ModeOptions.swift](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Models/ModeOptions.swift) 与 [ModeSettingsView.swift](https://github.com/coteditor/CotEditor/blob/f90e70a644d968e33d48cc6b8258e72a06957f32/CotEditor/Sources/Settings%20Window/Panes/ModeSettingsView.swift)。细节见 [Mode 选项矩阵](mode-options-parity.md)。
+
 **CotEdit 1.0.6 双空格句点：**当前语法可在设置面板或 Edit > Substitutions 单独启停，Mode 默认关闭；在 Unicode 字母/数字或闭合引号、括号后输入第二个空格时，将前一空格替换为句点，保留第二空格。只处理 `input.type` 单次插入，不处理粘贴，两个字符变化合并在同一 CodeMirror 事务。该规则是固定的应用内近似，不根据系统语言或键盘地区改变；CotEditor 实际调用 macOS 地区化系统服务。
 
 **CotEdit 1.0.5 Mode 字体类型：**Format > Font > 字体类型和设置面板控件按当前语法保存 `standard`/`monospaced` 覆盖；未覆写时，CotEdit 依可确认的 Mode 分类让 Plain Text/Markdown 使用标准栈、代码模式使用等宽栈。旧版单一 `fontType` 偏好在缺少新映射时迁移成全局兼容值，可对某语法选“跟随模式默认”以覆盖该值。字体系列仍是应用级选择；打印根据当前文稿语法使用相同有效字体类型。CotEditor 的 Mode 还包含系统级字体选择与编辑器细节，此实现仅对齐字体类型切换工作流；导入语法 Mode 分类与原生字体呈现仍需目标系统验收。

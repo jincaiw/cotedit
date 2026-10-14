@@ -120,7 +120,7 @@ import { verticalTextAdjacentPosition } from '../lib/vertical-navigation.js';
 import { selectEnclosingPairAtDoubleClick } from '../lib/double-click-selection.js';
 import { formatExternalApplicationLabel } from '../lib/external-application-label.js';
 import { Prec } from '@codemirror/state';
-import { autoCompletionEnabledForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, continuousSpellCheckingEnabledForLanguage, fontTypeForLanguage, setFontTypeOverride, setContinuousSpellCheckingOverride, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeLineHeight, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
+import { autoCompletionEnabledForLanguage, autoExpandTabOverrideForLanguage, automaticSymbolBalancingEnabledForLanguage, clearIndentOverride, completionWordTypesForLanguage, continuousSpellCheckingEnabledForLanguage, fontTypeForLanguage, setAutoExpandTabOverride, setFontTypeOverride, setContinuousSpellCheckingOverride, DEFAULT_SETTINGS, normalizeKeyBindings, normalizeLineHeight, normalizeSettings, parseStoredSettings, setAutoCompletionOverride, setAutomaticSymbolBalancingOverride, setCompletionWordTypesOverride } from '../lib/settings.js';
 import { defaultSyntaxFileExtension, normalizeDefaultSyntaxId, resolveDefaultSyntaxId } from '../lib/default-syntax.js';
 import { deleteSoftTab, insertSoftTab } from '../lib/soft-tabs.js';
 import { handleSelectedLinesTab } from '../lib/tab-selection-indent.js';
@@ -791,8 +791,15 @@ function useGlobalIndentForActiveLanguage() {
   return true;
 }
 
+function autoExpandTabForDocument(doc = activeDoc) {
+  const modeOverride = autoExpandTabOverrideForLanguage(settings, doc?.language);
+  return modeOverride === null
+    ? effectiveAutoExpandTab(doc?.detectedIndentStyle, settings.autoExpandTab)
+    : modeOverride;
+}
+
 function tabInsertionMode(doc = activeDoc) {
-  return resolveTabInsertionMode(doc?.detectedIndentStyle, settings.autoExpandTab, indentationFor(doc));
+  return resolveTabInsertionMode(doc?.detectedIndentStyle, settings.autoExpandTab, indentationFor(doc), autoExpandTabOverrideForLanguage(settings, doc?.language));
 }
 
 function indentExtensions(doc = activeDoc) {
@@ -2242,7 +2249,7 @@ function syncMenuState() {
     indent: indentationFor(),
     hasIndentOverride: Boolean(activeDoc?.language && Object.prototype.hasOwnProperty.call(settings.indentByLanguage, activeDoc.language)),
     tabWidth: settings.tabWidth,
-    autoExpandTab: effectiveAutoExpandTab(activeDoc?.detectedIndentStyle, settings.autoExpandTab),
+    autoExpandTab: autoExpandTabForDocument(),
     theme: settings.theme,
     fontType: fontTypeForDocument(),
     wrap: Boolean(settings.wrap),
@@ -2362,6 +2369,8 @@ function toggleSetting(key) {
 
 function syncIndentControls() {
   const indentation = indentationFor();
+  const globalTabExpansionControl = $('#auto-expand-tab-setting');
+  if (globalTabExpansionControl) globalTabExpansionControl.checked = settings.autoExpandTab === true;
   const select = $('#indent-select');
   for (const option of select.querySelectorAll('option[data-custom-width]')) option.remove();
   if (!['tab', '2', '4', '8'].includes(indentation)) {
@@ -2374,6 +2383,12 @@ function syncIndentControls() {
   select.value = indentation;
   $('#indent-toggle').textContent = indentation === 'tab' ? '制表符' : `空格: ${indentation}`;
   $('#indent-toggle').title = activeDoc ? `当前语法缩进：${indentation === 'tab' ? '制表符' : `${indentation} 个空格`}` : '默认缩进';
+  const tabExpansionControl = $('#tab-expansion-language-setting');
+  if (tabExpansionControl) {
+    const override = autoExpandTabOverrideForLanguage(settings, activeDoc?.language);
+    tabExpansionControl.value = override === null ? 'mode-default' : override ? 'on' : 'off';
+    tabExpansionControl.disabled = !activeDoc?.language;
+  }
 }
 
 function syncAutoCompletionControls() {
@@ -6685,9 +6700,10 @@ function handleMenu(channel, value) {
     'menu:writing-direction-rtl': () => setDocumentWritingDirection('rtl'),
     'menu:toggle-line-numbers': () => { settings.showLineNumbers = !settings.showLineNumbers; persistSettings(); applySettings(); },
     'menu:auto-expand-tab': () => {
-      const current = effectiveAutoExpandTab(activeDoc?.detectedIndentStyle, settings.autoExpandTab);
-      if (activeDoc) activeDoc.detectedIndentStyle = null;
-      settings.autoExpandTab = !current;
+      const current = autoExpandTabForDocument(activeDoc);
+      if (activeDoc?.language) {
+        settings.autoExpandTabByLanguage = setAutoExpandTabOverride(settings.autoExpandTabByLanguage, activeDoc.language, !current);
+      } else settings.autoExpandTab = !current;
       persistSettings();
       applySettings();
     },
@@ -7504,6 +7520,19 @@ function registerEvents() {
   });
   $('#font-down').addEventListener('click', () => changeFontSize(-1));
   $('#font-up').addEventListener('click', () => changeFontSize(1));
+  $('#auto-expand-tab-setting').addEventListener('change', event => {
+    settings.autoExpandTab = event.target.checked;
+    persistSettings();
+    applySettings();
+  });
+  $('#tab-expansion-language-setting').addEventListener('change', event => {
+    const language = activeDoc?.language;
+    if (!language) { syncIndentControls(); return; }
+    const value = event.target.value === 'on' ? true : event.target.value === 'off' ? false : null;
+    settings.autoExpandTabByLanguage = setAutoExpandTabOverride(settings.autoExpandTabByLanguage, language, value);
+    persistSettings();
+    applySettings();
+  });
   $('#indent-select').addEventListener('change', event => {
     if (event.target.value === 'custom') { showCustomWidthDialog('indent'); syncIndentControls(); }
     else setIndent(event.target.value);
