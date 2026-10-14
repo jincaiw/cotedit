@@ -6,7 +6,7 @@ CotEdit 是跨平台桌面文本编辑器，不能将 Electron/CodeMirror 宣称
 
 ## GPUI 原生版本迁移
 
-正在 `app/` 中并行开发 Rust + GPUI Kit 原生桌面版本，现有 Electron 应用保留为功能基线。迁移范围、阶段与平台验收要求见[GPUI 迁移计划](docs/gpui-migration-plan.md)，逐功能进度见[GPUI 对齐矩阵](docs/gpui-parity-matrix.md)。当前 Rust 增量提供多窗口、多标签、最近文稿和按窗口恢复已保存文稿及未保存文本缓冲区、Tree-sitter 常见语法、启发式编码识别与格式选择（UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5）、六类行尾保留、原子保存和外部修改覆盖确认、查找/替换、转到行，以及行号/不可见空白/软换行切换。未保存文本以 500ms 延迟写入；格式变更和光标/滚动位置尚未恢复。GPUI 版本仍处迁移早期，尚未覆盖现有 Electron 应用或 CotEditor 的完整功能；编码自动检测及真实平台 UI 尚未完成验收。运行命令：`cargo run --manifest-path app/Cargo.toml`。
+正在 `app/` 中并行开发 Rust + GPUI Kit 原生桌面版本，现有 Electron 应用保留为功能基线。迁移范围、阶段与平台验收要求见[GPUI 迁移计划](docs/gpui-migration-plan.md)，逐功能进度见[GPUI 对齐矩阵](docs/gpui-parity-matrix.md)。当前 Rust 增量提供多窗口、多标签、最近文稿和按窗口恢复已保存文稿及未保存文本缓冲区、Tree-sitter 常见语法、启发式编码识别与格式选择（UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5）、六类行尾保留、原子保存和外部修改覆盖确认、查找/替换、转到行，以及行号/不可见空白/软换行切换。未保存文本以 500ms 延迟写入，并恢复光标行列；纯格式变更、滚动位置和实时光标移动尚未恢复。GPUI 版本仍处迁移早期，尚未覆盖现有 Electron 应用或 CotEditor 的完整功能；编码自动检测及真实平台 UI 尚未完成验收。运行命令：`cargo run --manifest-path app/Cargo.toml`。
 
 ## 当前对齐状态
 

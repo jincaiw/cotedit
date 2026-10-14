@@ -4,7 +4,7 @@
 
 | 功能域 | CotEditor 7.1.2 核对入口 | 现有 Electron 基线 | GPUI 当前实现 | 平台/验收关注点 |
 |---|---|---|---|---|
-| 文稿窗口与标签 | `CotEditor/Sources/Document Window/`、`DocumentWindow.swift`、`Main.storyboard` | 多窗口、标签、保存/恢复与重开流程 | 独立窗口、多标签；按窗口保存最近文稿、恢复已保存文稿和未保存文本快照 | 纯格式未保存状态、光标/滚动位置恢复、应用级退出确认、标签重排/溢出及逐平台窗口生命周期仍缺/待验收 |
+| 文稿窗口与标签 | `CotEditor/Sources/Document Window/`、`DocumentWindow.swift`、`Main.storyboard` | 多窗口、标签、保存/恢复与重开流程 | 独立窗口、多标签；按窗口保存最近文稿、恢复已保存文稿和未保存文本快照，并恢复光标行列 | 纯格式未保存状态、滚动位置和实时光标移动持久化、应用级退出确认、标签重排/溢出及逐平台窗口生命周期仍缺/待验收 |
 | 新建、打开、保存 | `Document.swift`、`DocumentViewController.swift`、File 菜单 | 文稿读写、原子保存、另存为、远程文件流程 | 原生文件选择器；多编码和行尾首版、跨平台原子保存、SHA-256 外部修改提示 | 非文本文件判断待实现；保存检查与替换之间有并发竞态，平台 ACL/扩展元数据保留需验收 |
 | 编码与换行符 | `Packages/EditorCore/Sources/DocumentFile/`、Format 菜单、检查器 | 多编码、BOM、六种行尾、混合行尾统计/保留 | BOM 优先、严格 UTF-8 / chardetng 常见编码识别；支持 UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5 的显式选择和无损编码检查；识别六类行尾，基于行文本差异保留未改行的原行尾，Format 可统一 | 还需错误编码/二进制文稿处理、不同 charset 检测边界和大文稿压力验收；已修改行使用当前默认行尾，行差异映射不是 CotEditor 的增量行尾缓存算法 |
 | 编辑器与语法 | `EditorTextViewController.swift`、`ModeOptions.swift`、`Resources/Syntaxes/` | CodeMirror 6、72 个内置语法及 `.cotsyntax` 子集 | GPUI Editor；20 种 Tree-sitter 语言映射；行号、不可见空白、软换行可切换 | Tree-sitter token/编辑语义、字体与语法范围对齐；折叠、大纲、补全及大文稿/IMEs待验收 |
@@ -31,7 +31,7 @@
 | 新建标签、切换标签和窗口 | GPUI `CotEdit` 实体拥有多个 `EditorState`；New Window 创建独立工作区 | 已接入，需多窗口实机验收 |
 | 打开 | GPUI 原生文件选择器；chardetng/encoding_rs 解码、六类行尾归一化和格式快照 | 已实现首版，自动检测为启发式，支持格式菜单覆盖 |
 | 保存/另存为 | GPUI 保存路径提示；目标编码往返检查、BOM、逐行行尾写回、同目录原子替换和目标文件冲突确认 | 已实现首版；提交竞态和平台元数据待验收 |
-| 最近文稿/会话 | GPUI 配置目录 JSON；最近列表下拉菜单和按窗口恢复 | 已实现首版；未保存文本以 500ms 延迟写入/恢复；格式选项、光标或滚动位置尚未保存 |
+| 最近文稿/会话 | GPUI 配置目录 JSON；最近列表下拉菜单和按窗口恢复 | 已实现首版；未保存文本以 500ms 延迟写入/恢复，并保存光标行列；纯格式选项、滚动位置及实时光标移动尚未持久化 |
 | 编辑/查找 | GPUI Kit Editor、Tree-sitter 语言映射、内置 Undo/Redo、文本查找/替换和搜索面板 | 已接入基础能力；替换可按当前命中或全部执行，CotEditor 搜索语义未核对 |
 | File/Edit/Find/Text/View 菜单 | `Menu` + `Action`，先绑定 keymap 再注册菜单 | 已实现小型子集；File 有 New Window，Find 提供查找/替换，Text 提供 Indent/Outdent，View 提供行号/不可见空白/软换行切换 |
 | 快捷键 | `secondary-*` 映射 Command/Control；Ctrl+Tab 标签切换 | 已配置，实体键盘和系统菜单展示待实测 |

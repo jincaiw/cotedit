@@ -85,7 +85,9 @@ fn same_file_path(first: &Path, second: &Path) -> bool {
 struct PersistedDraft {
     path: Option<PathBuf>,
     untitled_index: Option<usize>,
-    text: String,
+    text: Option<String>,
+    cursor_line: u32,
+    cursor_column: u32,
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -93,6 +95,8 @@ struct PersistedWindow {
     id: String,
     open_files: Vec<PathBuf>,
     active_file: Option<PathBuf>,
+    #[serde(default)]
+    active_untitled_index: Option<usize>,
     #[serde(default)]
     drafts: Vec<PersistedDraft>,
 }
@@ -126,6 +130,7 @@ fn load_session(path: Option<&Path>) -> PersistedSession {
             id: "restored-legacy-window".to_owned(),
             open_files: std::mem::take(&mut session.open_files),
             active_file: session.active_file.take(),
+            active_untitled_index: None,
             drafts: Vec::new(),
         });
     }
@@ -304,6 +309,17 @@ impl CotEdit {
             }) {
                 app.activate(ix, window, cx);
             }
+        } else if let Some(ordinal) = saved_window.active_untitled_index {
+            if let Some(ix) = app
+                .documents
+                .iter()
+                .enumerate()
+                .filter(|(_, document)| document.path.is_none())
+                .nth(ordinal)
+                .map(|(index, _)| index)
+            {
+                app.activate(ix, window, cx);
+            }
         }
         app.persist_session(cx);
         app
@@ -325,13 +341,20 @@ impl CotEdit {
                 .filter_map(|document| document.path.clone())
                 .collect(),
             active_file: self.documents[self.active].path.clone(),
+            active_untitled_index: self.documents[self.active].path.is_none().then(|| {
+                self.documents[..self.active]
+                    .iter()
+                    .filter(|document| document.path.is_none())
+                    .count()
+            }),
             drafts: self
                 .documents
                 .iter()
                 .enumerate()
-                .filter_map(|(index, document)| {
+                .map(|(index, document)| {
                     let text = document.editor.read(cx).value();
-                    (text.as_ref() != document.saved_text).then(|| PersistedDraft {
+                    let cursor = document.editor.read(cx).cursor_position();
+                    PersistedDraft {
                         path: document.path.clone(),
                         untitled_index: document.path.is_none().then(|| {
                             self.documents[..index]
@@ -339,8 +362,10 @@ impl CotEdit {
                                 .filter(|previous| previous.path.is_none())
                                 .count()
                         }),
-                        text: text.to_string(),
-                    })
+                        text: (text.as_ref() != document.saved_text).then(|| text.to_string()),
+                        cursor_line: cursor.line,
+                        cursor_column: cursor.character,
+                    }
                 })
                 .collect(),
         });
@@ -422,7 +447,17 @@ impl CotEdit {
             });
             let editor = self.documents[index].editor.clone();
             editor.update(cx, |editor, cx| {
-                editor.set_value(draft.text.clone(), window, cx)
+                if let Some(text) = draft.text.as_deref() {
+                    editor.set_value(text, window, cx);
+                }
+                editor.set_cursor_position(
+                    Position {
+                        line: draft.cursor_line,
+                        character: draft.cursor_column,
+                    },
+                    window,
+                    cx,
+                );
             });
         }
         self.update_title(window, cx);
