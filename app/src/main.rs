@@ -194,6 +194,8 @@ actions!(
         PreviousTab,
         Find,
         FindReplace,
+        UseSelectionForFind,
+        UseSelectionForReplace,
         FindNext,
         FindPrevious,
         GoToLine,
@@ -1358,6 +1360,14 @@ impl Render for CotEdit {
                 this.editor()
                     .update(cx, |editor, cx| editor.open_search(true, cx));
             }))
+            .on_action(cx.listener(|this, _: &UseSelectionForFind, _, cx| {
+                this.editor()
+                    .update(cx, |editor, cx| editor.open_search(false, cx));
+            }))
+            .on_action(cx.listener(|this, _: &UseSelectionForReplace, _, cx| {
+                this.editor()
+                    .update(cx, |editor, cx| editor.open_search(true, cx));
+            }))
             .on_action(cx.listener(Self::go_to_line))
             .on_action(cx.listener(Self::toggle_line_numbers))
             .on_action(cx.listener(Self::toggle_invisibles))
@@ -1425,6 +1435,8 @@ fn install_commands(cx: &mut App) {
         KeyBinding::new("ctrl-tab", NextTab, None),
         KeyBinding::new("ctrl-shift-tab", PreviousTab, None),
         KeyBinding::new("secondary-f", Find, Some("Editor")),
+        KeyBinding::new("secondary-e", UseSelectionForFind, Some("Editor")),
+        KeyBinding::new("secondary-shift-e", UseSelectionForReplace, Some("Editor")),
         KeyBinding::new("secondary-g", FindNext, Some("Editor")),
         KeyBinding::new("secondary-shift-g", FindPrevious, Some("Editor")),
         KeyBinding::new("secondary-l", GoToLine, Some("Editor")),
@@ -1579,6 +1591,9 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Find…", Find),
             MenuItem::action("Find Next", FindNext),
             MenuItem::action("Find Previous", FindPrevious),
+            MenuItem::separator(),
+            MenuItem::action("Use Selection for Find", UseSelectionForFind),
+            MenuItem::action("Use Selection for Replace", UseSelectionForReplace),
             MenuItem::action("Find and Replace…", FindReplace),
             MenuItem::separator(),
             MenuItem::action("Go to Line…", GoToLine),

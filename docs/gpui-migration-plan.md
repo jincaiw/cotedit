@@ -70,7 +70,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ### P2：CotEditor 命令面和工作流
 
-- [ ] 依 CotEditor 7.1.2 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；GPUI 已加入首批可用菜单、活动窗口 View 勾选态、当前编码/默认行尾/语法勾选态、Format > Syntax 选择及 Reset Syntax Analysis（Cmd+R）、CotEdit 帮助/问题反馈、About、macOS Services/Hide/Hide Others、动态 File > Open Recent、File > Revert to Saved、窗口缩放/最小化和新建/查找快捷键，完整菜单与其他平台验收仍缺。
+- [ ] 依 CotEditor 7.1.2 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；GPUI 已加入首批可用菜单、活动窗口 View 勾选态、当前编码/默认行尾/语法勾选态、Format > Syntax 选择及 Reset Syntax Analysis（Cmd+R）、查找选区操作（Cmd+E / Cmd+Shift+E）、CotEdit 帮助/问题反馈、About、macOS Services/Hide/Hide Others、动态 File > Open Recent、File > Revert to Saved、窗口缩放/最小化和新建/查找快捷键，完整菜单与其他平台验收仍缺。
 - [ ] 从上游默认键位表建立统一命令注册表；覆盖 macOS Command、Windows/Linux Control 映射、上下文、冲突检查及用户自定义键位。
 - [ ] 设置窗口各页、设置导入/导出、主题管理、片段、替换定义、工具栏定制、脚本和外部集成。
 - [ ] 文件夹浏览/搜索/预览、拖放规则、远程编辑、打印/导出及恢复管理。
@@ -85,12 +85,12 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；纯格式状态、滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮验证记录
 
 - `cargo fmt --manifest-path app/Cargo.toml --check`、macOS arm64 `cargo check`、macOS x86_64 `cargo check` 与 `git diff --check` 通过。
-- GitHub Actions 运行 `38564488773`、`38569656863`、`38570355701`、`38570702357`、`38572107193`、`38572426770` 的 macOS、Windows、Linux 原生 runner 均完成 `cargo build --release --locked` 并上传二进制 artifact；后三次分别验证 Help 菜单、Syntax 选择功能、CotEditor Format 菜单顺序。macOS arm64 artifact 已启动并显示 GPUI 窗口；本机 debug 构建截屏核验应用菜单名、File 菜单命令和窗口/标签/编辑区/状态栏。
+- GitHub Actions 运行 `38564488773`、`38569656863`、`38570355701`、`38570702357`、`38572107193`、`38572426770` 的 macOS、Windows、Linux 原生 runner 均完成 `cargo build --release --locked` 并上传二进制 artifact；后三次分别验证 Help 菜单、Syntax 选择功能、CotEditor Format 菜单顺序。macOS arm64 artifact 已启动并显示 GPUI 窗口；本机 debug 构建截屏核验应用菜单名、File 菜单命令和窗口/标签/编辑区/状态栏。本批选区查找/替换已通过本机格式与编译检查，三平台 CI 待验证。
 - 本机 Windows x86_64 交叉检查在 `gpui-pre` 构建脚本因缺少 `llvm-rc` 中止；Linux x86_64 因缺少 `x86_64-linux-gnu-gcc` 中止。CI 已在原生 runner 编译通过，仍未对 Windows/Linux 实际窗口、菜单、输入法和文件操作进行运行验收。
 
 ## 验收原则
