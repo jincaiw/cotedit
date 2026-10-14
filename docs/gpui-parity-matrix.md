@@ -22,7 +22,7 @@
 | 打印/导出/服务 | `DocumentViewController.swift`、Print 菜单、Services | HTML 打印、PDF 等导出、外部服务近似 | 未实现 | GPUI/操作系统打印后端、字体、页边距及各平台真实验收 |
 | 拼写、替换、语音和连续互通 | `Main.storyboard`、Mode/文本系统设置、Edit 菜单 | Chromium 字典/语音及固定文本替换近似 | 未实现 | Cocoa 服务只在 macOS 可能直接接入；Windows/Linux 应使用真实 OS 能力或标明不支持 |
 | 可访问性与本地化 | CotEditor SwiftUI/AppKit 全部视图与本地化资源 | Electron 辅助技术和简体中文仍有差距 | 使用 GPUI Kit 语义控件和英文初始 copy | VoiceOver、NVDA、Orca、读屏器、焦点顺序、动态播报及中英长度验收 |
-| 安装、文件关联和更新 | Xcode 工程、Info plist、发行配置 | electron-builder 三平台安装包 | 未实现 | Windows/Linux/macOS 原生安装、关联、签名/公证和更新渠道 |
+| 安装、文件关联和更新 | Xcode 工程、Info plist、发行配置 | electron-builder 三平台安装包 | 独立 GPUI 构建工作流已配置三平台原生 runner 编译并上传二进制 CI artifact；尚无 GPUI 安装器、文件关联或正式 release | Windows/Linux/macOS 原生安装、关联、签名/公证和更新渠道 |
 
 ## 首个 GPUI 增量明细
 

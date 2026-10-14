@@ -1,0 +1,72 @@
+name: Build GPUI application
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'app/**'
+      - '.github/workflows/gpui-build.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - '.github/workflows/gpui-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macOS
+            runner: macos-latest
+          - platform: Windows
+            runner: windows-latest
+          - platform: Linux
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc g++ clang pkg-config libfontconfig-dev libwayland-dev \
+            libwebkit2gtk-4.1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+            libssl-dev libzstd-dev libasound2-dev \
+            vulkan-validationlayers libvulkan1
+
+      - name: Install Windows resource compiler
+        if: runner.os == 'Windows'
+        run: choco install llvm --no-progress -y
+
+      - name: Add LLVM tools to PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Add-Content $env:GITHUB_PATH "$env:ProgramFiles\LLVM\bin"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
+
+      - name: Build application
+        run: cargo build --manifest-path app/Cargo.toml --release --locked
+
+      - name: Upload GPUI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: cotedit-gpui-${{ matrix.platform }}
+          path: app/target/release/cotedit-gpui*
+          if-no-files-found: error
+          retention-days: 14
