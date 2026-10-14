@@ -187,6 +187,7 @@ actions!(
         Open,
         Save,
         SaveAs,
+        RevertToSaved,
         CloseTab,
         CloseWindow,
         NextTab,
@@ -283,6 +284,7 @@ struct MenuState {
     encoding: TextEncoding,
     line_ending: LineEnding,
     recent_files: Vec<PathBuf>,
+    can_revert: bool,
 }
 
 impl Default for MenuState {
@@ -294,6 +296,7 @@ impl Default for MenuState {
             encoding: TextEncoding::Utf8 { bom: false },
             line_ending: LineEnding::Lf,
             recent_files: Vec::new(),
+            can_revert: false,
         }
     }
 }
@@ -578,6 +581,7 @@ impl CotEdit {
             encoding: document.encoding,
             line_ending: document.line_ending,
             recent_files: self.recent_files.clone(),
+            can_revert: document.path.is_some(),
         }
     }
 
@@ -1060,6 +1064,78 @@ impl CotEdit {
         .detach_and_log_err(cx);
     }
 
+    fn revert_to_saved(&mut self, _: &RevertToSaved, window: &mut Window, cx: &mut Context<Self>) {
+        let index = self.active;
+        let Some(path) = self.documents[index].path.clone() else {
+            return;
+        };
+        if self.documents[index].is_dirty(cx) {
+            let answer = window.prompt(
+                PromptLevel::Warning,
+                "Discard changes and revert?",
+                Some("The current document will be replaced with its contents on disk."),
+                &["Revert", "Cancel"],
+                cx,
+            );
+            cx.spawn_in(window, async move |this, cx| {
+                if answer.await? == 0 {
+                    this.update_in(cx, |this, window, cx| {
+                        if this.active == index {
+                            this.reload_document(index, &path, window, cx);
+                        }
+                    })?;
+                }
+                anyhow::Ok(())
+            })
+            .detach_and_log_err(cx);
+        } else {
+            self.reload_document(index, &path, window, cx);
+        }
+    }
+
+    fn reload_document(
+        &mut self,
+        index: usize,
+        path: &Path,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                window
+                    .push_notification(format!("Couldn’t reload {}: {error}", path.display()), cx);
+                return;
+            }
+        };
+        let decoded = match decode(&bytes) {
+            Ok(decoded) => decoded,
+            Err(error) => {
+                window
+                    .push_notification(format!("Couldn’t decode {}: {error}", path.display()), cx);
+                return;
+            }
+        };
+        let document = &mut self.documents[index];
+        let text = decoded.text;
+        document.editor.update(cx, |editor, cx| {
+            editor.set_value(&text, window, cx);
+            editor.set_cursor_position(Position::default(), window, cx);
+        });
+        document.saved_text = text;
+        document.encoding = decoded.encoding;
+        document.saved_encoding = decoded.encoding;
+        document.line_endings = decoded.line_endings;
+        document.line_ending = decoded.dominant_line_ending;
+        document.saved_line_ending = decoded.dominant_line_ending;
+        document.force_line_ending = false;
+        document.saved_disk_hash = Some(content_hash(&bytes));
+        self.update_title(window, cx);
+        self.persist_session(cx);
+        install_menus(cx, self.menu_state());
+        cx.notify();
+    }
+
     fn close_window(&mut self, _: &CloseWindow, window: &mut Window, cx: &mut Context<Self>) {
         self.request_close_window(window, cx);
     }
@@ -1210,6 +1286,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::open))
             .on_action(cx.listener(Self::save))
             .on_action(cx.listener(Self::save_as))
+            .on_action(cx.listener(Self::revert_to_saved))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
             .on_action(cx.listener(Self::next_tab))
@@ -1357,6 +1434,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::separator(),
             MenuItem::action("Save", Save),
             MenuItem::action("Save As…", SaveAs),
+            MenuItem::action("Revert to Saved", RevertToSaved).disabled(!state.can_revert),
             MenuItem::separator(),
             MenuItem::action("Close", CloseTab),
         ]),
