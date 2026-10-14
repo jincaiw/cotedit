@@ -10,4 +10,4 @@ CotEdit 仓库现以 `app/` 下的 Rust + GPUI Kit 应用作为唯一应用实�
 
 ## 发行边界
 
-GPUI 原生 runner 已构建并上传 CI 归档。新的发行工作流只接受 `gpui-v*` 标签，避免将旧 Electron `v*` 发布版本覆盖；制作完整安装器、文件关联、签名/公证、自动更新，以及 macOS/Windows/Linux 实机交互验收后，再建立正式 GPUI 版本。
+GitHub Actions 运行 `38578139931` 已在 macOS、Windows、Linux 原生 runner 完成 release 构建并上传二进制；手动分发归档运行 `38578203180` 的 macOS `.app` ZIP、Windows ZIP、Linux tar.gz 均已构建并下载核对。macOS `Info.plist` lint 通过；Windows/Linux 桌面启动和安装流程未验收。此次是 `workflow_dispatch`，发布 job 被跳过，没有创建 GPUI Release。

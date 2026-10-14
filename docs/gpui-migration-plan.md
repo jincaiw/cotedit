@@ -96,7 +96,8 @@ Electron/CodeMirror 应用源码、Node/npm 清单及锁文件、前端资源、
 ## 本轮验证记录
 
 - `cargo fmt --all --check`、`CARGO_TARGET_DIR=app/target cargo check --workspace --locked`、`CARGO_TARGET_DIR=app/target cargo build --workspace --release --locked`、`actionlint .github/workflows/gpui-build.yml .github/workflows/release.yml` 与 `git diff --check` 通过。Cargo crate 已改名为 `cotedit`，版本为 GPUI 预览基线 `0.1.0`，Cargo workspace/lockfile 已移至仓库根目录。
-- 本次切换后的 Windows/Linux 原生构建及三平台归档尚未由 GitHub Actions 运行；须在推送后核对新 root workspace artifact 路径和归档任务。历史 GPUI build run 只验证切换前的代码。
+- GitHub Actions 运行 `38578139931` 的 macOS、Windows、Linux 原生 release build 和 binary artifact 上传全部成功；手动归档运行 `38578203180` 的三平台 package job 全部成功，Publish job 因 workflow_dispatch 在 master 上被跳过。
+- 已下载并检查归档：macOS `CotEdit.app` ZIP 含可执行文件、ICNS 与 `Info.plist`，`plutil -lint` 通过；Windows ZIP 含 `CotEdit.exe` 和 README；Linux tar.gz 含 `CotEdit` 和 README。Windows/Linux 实际桌面启动、安装、文件关联和输入法仍未验收。
 - macOS debug 窗口与菜单已实机核验：应用名、File 菜单、Format 顺序、Syntax 选项/Rust 勾选态、Cmd+R 与 Find 的 Cmd+E/Cmd+Shift+E 显示；未验证实际按键命令和跨平台运行交互。
 - 本机 Windows x86_64 交叉检查在 `gpui-pre` 构建脚本因缺少 `llvm-rc` 中止；Linux x86_64 因缺少 `x86_64-linux-gnu-gcc` 中止。CI 已在原生 runner 编译通过，仍未对 Windows/Linux 实际窗口、菜单、输入法和文件操作进行运行验收。
 
