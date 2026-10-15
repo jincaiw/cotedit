@@ -16,7 +16,7 @@
 
 ## 当前审查结果与实施顺序
 
-审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.2-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
+审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.7-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
 
 | 阶段 | 目标 | 关键实现范围 | 完成/验收条件 |
 |---|---|---|---|
@@ -59,7 +59,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 ### P1：编辑器和文稿核心
 
 - [x] 单窗口多文稿标签、独立窗口、标签/窗口关闭确认首版；会话按窗口保存并恢复已保存文稿。
-- [x] 未保存文本缓冲区按窗口延迟写入和恢复，并保存文稿光标行列；会话 v4 保存文稿缩进、语法模式默认缩进偏好和每窗口状态栏可见性；滚动位置、实时光标移动及其他格式状态持久化仍缺。
+- [x] 未保存文本缓冲区按窗口延迟写入和恢复，并保存文稿光标行列；会话 v4 保存文稿缩进、语法模式默认缩进偏好、每窗口状态栏可见性和每篇文稿只读状态；滚动位置、实时光标移动及其他格式状态持久化仍缺。
 - [x] 跨平台原子保存和保存前外部修改确认首版。
 - [ ] 三平台窗口运行时验收及检查—提交并发竞态处理。
 - [x] 最近文稿列表与按窗口会话恢复；未保存文本按窗口延迟写入/恢复并记住光标行列；会话 v4 保存文稿缩进、语法模式默认值和窗口状态栏可见性；滚动位置、实时光标移动和其他格式状态仍缺。
@@ -78,6 +78,8 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 - [ ] 设置窗口各页、设置导入/导出、主题管理、片段、替换定义、工具栏定制、脚本和外部集成。
 - [x] File > Show in File Manager 对已保存文稿打开平台文件管理器（macOS Finder/Windows Explorer 选择文件，Linux 打开父目录）；无路径文稿时菜单禁用。
 - [x] File > Copy File Path 将活动已保存文稿的完整路径写入系统剪贴板；无路径文稿时菜单禁用。
+- [x] File > Open Recent > Clear Menu 清理跨窗口共享的最近文稿记录，并持久化清理结果。
+- [x] Format > Prevent Editing 用 GPUI Editor 原生只读属性限制文本输入，仍允许焦点/选择/复制；替换入口禁用并按文稿会话保存。
 - [ ] 文件夹浏览/搜索/预览、拖放规则、远程编辑、打印/导出及恢复管理。
 
 ### P3：平台适配与质量
@@ -90,7 +92,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换；View 菜单提供行号和状态栏开关，Format 菜单提供不可见空白、软换行和 Tab Width 开关，各项勾选态跟随活动文稿；Format 菜单的编码、默认行尾与语法也标记当前选项、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。Format > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换；View 菜单提供行号和状态栏开关，Format 菜单提供不可见空白、软换行和 Tab Width 开关，各项勾选态跟随活动文稿；Format 菜单的编码、默认行尾与语法也标记当前选项、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。Format > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复；File > Open Recent > Clear Menu 清空进程共享列表并立即持久化；Format > Prevent Editing 保留选择/复制、禁用替换，并按文稿会话恢复。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮移除记录
 

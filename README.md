@@ -29,6 +29,7 @@ GitHub Actions 在 macOS、Windows 和 Linux 原生 runner 上构建 GPUI，并�
 
 - [GPUI 功能对齐矩阵](docs/gpui-parity-matrix.md)：逐域记录实现、缺项与验收状态。
 - [CotEditor 当前上游完整比较清单](docs/upstream-main-parity.md)：按当前 `main` 菜单、快捷键、窗口工作流和设置/集成功能核对差异。
+- [GPUI 功能对齐收尾计划](docs/gpui-completion-plan.md)：剩余功能的依赖顺序、验收条件和三平台交付门槛。
 - [GPUI 迁移计划](docs/gpui-migration-plan.md)：剩余工作与发布门槛。
 - [历史兼容性记录](docs/compatibility.md)：旧版 Electron 对齐工作的参考资料，不代表当前 GPUI 实现。
 - [历史菜单清单](docs/menu-parity.md)：旧版菜单核对资料，GPUI 状态以当前对齐矩阵为准。

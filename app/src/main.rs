@@ -5,6 +5,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -159,6 +160,8 @@ struct PersistedDraft {
     tab_size: usize,
     #[serde(default = "default_hard_tabs")]
     hard_tabs: bool,
+    #[serde(default)]
+    prevent_editing: bool,
 }
 
 #[derive(Clone, Default, Deserialize, Serialize)]
@@ -275,6 +278,8 @@ actions!(
         RevertToSaved,
         RevealDocument,
         CopyFilePath,
+        ClearRecentFiles,
+        ToggleEditing,
         CloseTab,
         CloseWindow,
         NextTab,
@@ -354,6 +359,7 @@ struct Document {
     soft_wrap: bool,
     tab_size: usize,
     hard_tabs: bool,
+    prevent_editing: bool,
     _subscription: Subscription,
 }
 
@@ -400,6 +406,7 @@ struct MenuState {
     recent_files: Vec<PathBuf>,
     can_revert: bool,
     can_reveal_document: bool,
+    prevent_editing: bool,
 }
 
 impl Default for MenuState {
@@ -417,6 +424,7 @@ impl Default for MenuState {
             recent_files: Vec::new(),
             can_revert: false,
             can_reveal_document: false,
+            prevent_editing: false,
         }
     }
 }
@@ -424,7 +432,7 @@ impl Default for MenuState {
 struct CotEdit {
     documents: Vec<Document>,
     active: usize,
-    recent_files: Vec<PathBuf>,
+    recent_files: Arc<Mutex<Vec<PathBuf>>>,
     session_file: Option<PathBuf>,
     window_session_id: String,
     session_revision: u64,
@@ -438,7 +446,7 @@ impl CotEdit {
         window: &mut Window,
         cx: &mut Context<Self>,
         session_file: Option<PathBuf>,
-        recent_files: Vec<PathBuf>,
+        recent_files: Arc<Mutex<Vec<PathBuf>>>,
         saved_window: PersistedWindow,
     ) -> Self {
         let mut app = Self {
@@ -540,22 +548,13 @@ impl CotEdit {
                         cursor_column: cursor.character,
                         tab_size: document.tab_size,
                         hard_tabs: document.hard_tabs,
+                        prevent_editing: document.prevent_editing,
                     }
                 })
                 .collect(),
         });
-        let mut recent_files = self.recent_files.clone();
-        for path in session.recent_files {
-            if !recent_files
-                .iter()
-                .any(|recent| same_file_path(recent, &path))
-            {
-                recent_files.push(path);
-            }
-        }
-        recent_files.truncate(10);
         session.version = 4;
-        session.recent_files = recent_files;
+        session.recent_files = self.current_recent_files();
         session.open_files.clear();
         session.active_file = None;
         if let Err(error) = save_session(Some(session_path), &session) {
@@ -641,6 +640,7 @@ impl CotEdit {
             let hard_tabs = draft.hard_tabs;
             self.documents[index].tab_size = tab_size;
             self.documents[index].hard_tabs = hard_tabs;
+            self.documents[index].prevent_editing = draft.prevent_editing;
             let editor = self.documents[index].editor.clone();
             editor.update(cx, |editor, cx| {
                 editor.set_tab_size(
@@ -666,11 +666,31 @@ impl CotEdit {
         self.update_title(window, cx);
     }
 
+    fn current_recent_files(&self) -> Vec<PathBuf> {
+        match self.recent_files.lock() {
+            Ok(recent_files) => recent_files.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+
     fn remember_recent(&mut self, path: &Path) {
-        self.recent_files
-            .retain(|recent| !same_file_path(recent, path));
-        self.recent_files.insert(0, path.to_path_buf());
-        self.recent_files.truncate(10);
+        let mut recent_files = match self.recent_files.lock() {
+            Ok(recent_files) => recent_files,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        recent_files.retain(|recent| !same_file_path(recent, path));
+        recent_files.insert(0, path.to_path_buf());
+        recent_files.truncate(10);
+    }
+
+    fn clear_recent_files(&mut self, _: &ClearRecentFiles, _: &mut Window, cx: &mut Context<Self>) {
+        match self.recent_files.lock() {
+            Ok(mut recent_files) => recent_files.clear(),
+            Err(poisoned) => poisoned.into_inner().clear(),
+        }
+        self.persist_session(cx);
+        install_menus(cx, self.menu_state());
+        cx.notify();
     }
 
     fn add_document(
@@ -718,6 +738,7 @@ impl CotEdit {
             soft_wrap: true,
             tab_size: tab_size.tab_size,
             hard_tabs: tab_size.hard_tabs,
+            prevent_editing: false,
             _subscription: subscription,
         });
         self.active = self.documents.len() - 1;
@@ -733,6 +754,7 @@ impl CotEdit {
 
     fn menu_state(&self) -> MenuState {
         let document = &self.documents[self.active];
+        let recent_files = self.current_recent_files();
         MenuState {
             line_numbers: document.show_line_numbers,
             invisibles: document.show_whitespaces,
@@ -743,9 +765,10 @@ impl CotEdit {
             language: document.language.clone(),
             encoding: document.encoding,
             line_ending: document.line_ending,
-            recent_files: self.recent_files.clone(),
+            recent_files,
             can_revert: document.path.is_some(),
             can_reveal_document: document.path.is_some(),
+            prevent_editing: document.prevent_editing,
         }
     }
 
@@ -1210,6 +1233,13 @@ impl CotEdit {
         });
     }
 
+    fn toggle_editing(&mut self, _: &ToggleEditing, _: &mut Window, cx: &mut Context<Self>) {
+        self.documents[self.active].prevent_editing = !self.documents[self.active].prevent_editing;
+        install_menus(cx, self.menu_state());
+        self.persist_session(cx);
+        cx.notify();
+    }
+
     fn toggle_line_numbers(
         &mut self,
         _: &ToggleLineNumbers,
@@ -1601,6 +1631,8 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::revert_to_saved))
             .on_action(cx.listener(Self::reveal_document))
             .on_action(cx.listener(Self::copy_file_path))
+            .on_action(cx.listener(Self::clear_recent_files))
+            .on_action(cx.listener(Self::toggle_editing))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
             .on_action(cx.listener(Self::next_tab))
@@ -1625,16 +1657,20 @@ impl Render for CotEdit {
                     .update(cx, |editor, cx| editor.open_search(false, cx));
             }))
             .on_action(cx.listener(|this, _: &FindReplace, _, cx| {
-                this.editor()
-                    .update(cx, |editor, cx| editor.open_search(true, cx));
+                if !this.documents[this.active].prevent_editing {
+                    this.editor()
+                        .update(cx, |editor, cx| editor.open_search(true, cx));
+                }
             }))
             .on_action(cx.listener(|this, _: &UseSelectionForFind, _, cx| {
                 this.editor()
                     .update(cx, |editor, cx| editor.open_search(false, cx));
             }))
             .on_action(cx.listener(|this, _: &UseSelectionForReplace, _, cx| {
-                this.editor()
-                    .update(cx, |editor, cx| editor.open_search(true, cx));
+                if !this.documents[this.active].prevent_editing {
+                    this.editor()
+                        .update(cx, |editor, cx| editor.open_search(true, cx));
+                }
             }))
             .on_action(cx.listener(Self::go_to_line))
             .on_action(cx.listener(Self::toggle_line_numbers))
@@ -1662,6 +1698,7 @@ impl Render for CotEdit {
                 h_flex().flex_1().min_h_0().items_stretch().child(
                     Editor::new(&document.editor)
                         .appearance(false)
+                        .readonly(document.prevent_editing)
                         .flex_1()
                         .min_h_0()
                         .h_full(),
@@ -1724,29 +1761,40 @@ fn install_commands(cx: &mut App) {
 }
 
 fn install_menus(cx: &mut App, state: MenuState) {
-    let recent_menu = if state.recent_files.is_empty() {
-        Menu::new("Open Recent").items([MenuItem::action(
-            "No Recent Files",
-            OpenRecentDocument {
-                path: PathBuf::new(),
-            },
-        )
-        .disabled(true)])
-    } else {
-        Menu::new("Open Recent").items(state.recent_files.iter().map(|path| {
-            let name = path.file_name().map_or_else(
-                || path.display().to_string(),
-                |name| name.to_string_lossy().into_owned(),
-            );
-            let parent = path
-                .parent()
-                .map_or_else(String::new, |parent| parent.display().to_string());
+    let mut recent_menu_items = if state.recent_files.is_empty() {
+        vec![
             MenuItem::action(
-                format!("{name} — {parent}"),
-                OpenRecentDocument { path: path.clone() },
+                "No Recent Files",
+                OpenRecentDocument {
+                    path: PathBuf::new(),
+                },
             )
-        }))
+            .disabled(true),
+        ]
+    } else {
+        state
+            .recent_files
+            .iter()
+            .map(|path| {
+                let name = path.file_name().map_or_else(
+                    || path.display().to_string(),
+                    |name| name.to_string_lossy().into_owned(),
+                );
+                let parent = path
+                    .parent()
+                    .map_or_else(String::new, |parent| parent.display().to_string());
+                MenuItem::action(
+                    format!("{name} — {parent}"),
+                    OpenRecentDocument { path: path.clone() },
+                )
+            })
+            .collect()
     };
+    recent_menu_items.push(MenuItem::separator());
+    recent_menu_items.push(
+        MenuItem::action("Clear Menu", ClearRecentFiles).disabled(state.recent_files.is_empty()),
+    );
+    let recent_menu = Menu::new("Open Recent").items(recent_menu_items);
     cx.set_menus([
         Menu::new("CotEdit").items([
             MenuItem::action("About CotEdit", About),
@@ -1868,6 +1916,8 @@ fn install_menus(cx: &mut App, state: MenuState) {
             ),
             MenuItem::action("Show Invisibles", ToggleInvisibles).checked(state.invisibles),
             MenuItem::action("Wrap Lines", ToggleSoftWrap).checked(state.soft_wrap),
+            MenuItem::separator(),
+            MenuItem::action("Prevent Editing", ToggleEditing).checked(state.prevent_editing),
         ]),
         Menu::new("View").items([
             MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
@@ -1883,8 +1933,9 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Find Previous", FindPrevious),
             MenuItem::separator(),
             MenuItem::action("Use Selection for Find", UseSelectionForFind),
-            MenuItem::action("Use Selection for Replace", UseSelectionForReplace),
-            MenuItem::action("Find and Replace…", FindReplace),
+            MenuItem::action("Use Selection for Replace", UseSelectionForReplace)
+                .disabled(state.prevent_editing),
+            MenuItem::action("Find and Replace…", FindReplace).disabled(state.prevent_editing),
             MenuItem::separator(),
             MenuItem::action("Go to Line…", GoToLine),
         ]),
@@ -1905,7 +1956,7 @@ fn build_workspace_root(
     window: &mut Window,
     cx: &mut App,
     session_file: Option<PathBuf>,
-    recent_files: Vec<PathBuf>,
+    recent_files: Arc<Mutex<Vec<PathBuf>>>,
     saved_window: PersistedWindow,
 ) -> Entity<Root> {
     let view = cx.new(|cx| CotEdit::new(window, cx, session_file, recent_files, saved_window));
@@ -1925,7 +1976,7 @@ fn main() {
                 ..PersistedWindow::default()
             });
         }
-        let recent_files = session.recent_files;
+        let recent_files = Arc::new(Mutex::new(session.recent_files));
         for (index, saved_window) in session.windows.into_iter().enumerate() {
             let file = session_file.clone();
             let recent = recent_files.clone();
