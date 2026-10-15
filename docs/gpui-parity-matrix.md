@@ -1,8 +1,8 @@
 # GPUI 版本 CotEditor 功能对齐矩阵
 
-基线：CotEditor 7.1.2 源码发布 tag；Rust UI 使用 gpui-kit 0.7.3；参考应用 BetterNotepad 1.3.1。此表记录迁移目标和本仓库 `app/` 当前状态。Electron 列只说明旧实现现状，不能作为 Rust 行为已验证的证据。
+基线：CotEditor `main` 分支提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`（`7.2.0-alpha`）；GPUI 使用 gpui-kit 0.7.3。此表记录迁移目标和本仓库 `app/` 当前状态。Electron 列只说明旧实现现状，不能作为 Rust 行为已验证的证据。
 
-| 功能域 | CotEditor 7.1.2 核对入口 | CotEdit 1.0.7 历史实现记录（Electron 源码已移除） | GPUI 当前实现 | 平台/验收关注点 |
+| 功能域 | CotEditor 7.2.0-alpha 核对入口 | CotEdit 1.0.7 历史实现记录（Electron 源码已移除） | GPUI 当前实现 | 平台/验收关注点 |
 |---|---|---|---|---|
 | 文稿窗口与标签 | `CotEditor/Sources/Document Window/`、`DocumentWindow.swift`、`Main.storyboard` | 多窗口、标签、保存/恢复与重开流程 | 独立窗口、多标签；按窗口保存最近文稿、恢复已保存文稿和未保存文本快照，并恢复光标行列；标签栏可横向滚动并逐标签关闭；Window > Close Window 可走窗口关闭确认流程 | 纯格式未保存状态、滚动位置和实时光标移动持久化、应用级退出确认、标签重排及逐平台窗口生命周期仍缺/待验收 |
 | 新建、打开、保存 | `Document.swift`、`DocumentViewController.swift`、File 菜单 | 文稿读写、原子保存、另存为、远程文件流程 | 原生文件选择器；多编码和行尾首版、跨平台原子保存、SHA-256 外部修改提示；File > Revert to Saved 可重载磁盘版本，未保存时确认丢弃 | 非文本文件判断待实现；保存检查与替换之间有并发竞态，平台 ACL/扩展元数据保留需验收 |
@@ -10,7 +10,7 @@
 | 编辑器与语法 | `EditorTextViewController.swift`、`ModeOptions.swift`、`Resources/Syntaxes/` | CodeMirror 6、72 个内置语法及 `.cotsyntax` 子集 | GPUI Editor；20 种 Tree-sitter 语言映射；行号、不可见空白、软换行可切换 | Tree-sitter token/编辑语义、字体与语法范围对齐；折叠、大纲、补全及大文稿/IMEs待验收 |
 | Undo、文本编辑与多光标 | `Packages/EditorCore/Sources/TextEditing/`、Edit/Text 菜单 | 常用命令、批量替换、选区与多光标 | 编辑器内置基本 Undo/Redo、剪贴板、全选 | 命令覆盖、撤销边界、选区、IME 和多个光标需逐项核对 |
 | 查找/替换与正则 | `Packages/EditorCore/Sources/TextFind/`、Find 菜单 | 查找、替换、多重替换及 ICU 子集 | GPUI Kit 搜索面板支持文本查找、大小写敏感切换、替换当前命中、全部替换及行号跳转；`secondary-L` 打开行号对话框 | 正则/整词/选区范围搜索、ICU 语义、命中导航和其他搜索快捷键待核对 |
-| 菜单/命令/快捷键 | `CotEditor/Storyboards/Base.lproj/Main.storyboard`、`KeyBindingManager.swift` | 菜单、共享快捷键表、用户自定义和三平台映射 | File/Edit/Format/View/Text/Find/Window/Help 与 About/Quit 菜单首版；macOS 应用名显示为 CotEdit，应用菜单含 Services、Hide/Hide Others/Show CotEdit；File > Open Recent 与 Revert to Saved；Format 菜单按 CotEditor 顺序列出 Line Endings、Text Encoding、Syntax 与 Reset Syntax Analysis；Format > Syntax 可手动选择并标记当前语法；Help 可打开 README 和问题反馈；New/新窗口/新标签、Close Window、查找前后项、将选区用于查找/替换（Cmd+E / Cmd+Shift+E）、行号跳转、标签切换、缩放/最小化快捷键；View 勾选态随活动窗口更新 | 未实现完整菜单、设置和快捷键配置页及全平台实体键盘验收；Services 仅由 macOS 系统提供，Windows/Linux 上 GPUI 系统菜单支持待核验 |
+| 菜单/命令/快捷键 | `CotEditor/Storyboards/Base.lproj/Main.storyboard`、`KeyBindingManager.swift` | 菜单、共享快捷键表、用户自定义和三平台映射 | File/Edit/Format/View/Text/Find/Window/Help 与 About/Quit 菜单首版；macOS 应用名显示为 CotEdit，应用菜单含 Services、Hide/Hide Others/Show CotEdit；File > Open Recent 与 Revert to Saved；Format 菜单按 CotEditor 顺序列出 Line Endings、Text Encoding、Syntax 与 Reset Syntax Analysis；Format > Syntax 可手动选择并标记当前语法；Help 可打开 README 和问题反馈；New/新窗口/新标签、Close Window、查找前后项、将选区用于查找/替换（Cmd+E / Cmd+Shift+E）、行号跳转、标签切换、缩放/最小化快捷键；View 勾选态随活动窗口更新；Show Status Bar 按窗口持久化。上游当前菜单树和缺项详见 [`docs/upstream-main-parity.md`](upstream-main-parity.md) | 未实现完整菜单、设置和快捷键配置页及全平台实体键盘验收；Services 仅由 macOS 系统提供，Windows/Linux 上 GPUI 系统菜单支持待核验 |
 | 格式与缩进 | `ModeSettingsView.swift`、Format/View 菜单、`DefaultSettings.swift` | 按语法缩进、Tab、行操作及文本转换 | Format > Syntax 可手动选择 Plain Text 与 16 种 Tree-sitter 语法、重置语法分析并勾选当前语言；View > Tab Width 支持 2/4/8 与自定义 1–99 列，并可切换空格缩进，选项按文稿会话恢复；变更时同步保存当前语法模式默认值，新建文稿和切换语法时应用对应默认值；Text 菜单接入 Indent/Outdent | 手动语法选择持久化、缩进检测、注释、行操作、转换、排序待实现 |
 | 查找导航/大纲/导航栏 | `NavigationBar.swift`、`OutlineNavigator.swift`、Find/View 菜单 | 大纲提取、导航栏和转到行 | 未实现 | 语法 outline 与键盘选择、文稿/位置焦点同步 |
 | 分屏与辅助面板 | `ContentViewController.swift`、Inspector 源码 | 编辑器分屏、文稿/Unicode/警告 Inspector | 未实现 | 可调整分隔线、辅助面板焦点与尺寸记忆 |
@@ -31,12 +31,12 @@
 | 新建标签、切换标签和窗口 | GPUI `CotEdit` 实体拥有多个 `EditorState`；New Window 创建独立工作区 | 已接入，需多窗口实机验收；标签行可滚动并含独立关闭按钮；Window > Close Window、Cmd/Ctrl+Shift+W 使用窗口脏文稿确认流程 |
 | 打开 | GPUI 原生文件选择器；chardetng/encoding_rs 解码、六类行尾归一化和格式快照 | 已实现首版，自动检测为启发式，支持格式菜单覆盖 |
 | 保存/另存为 | GPUI 保存路径提示；目标编码往返检查、BOM、逐行行尾写回、同目录原子替换和目标文件冲突确认 | 已实现首版；提交竞态和平台元数据待验收 |
-| 最近文稿/会话 | GPUI 配置目录 JSON；File > Open Recent 菜单动态列出最近文稿，按窗口恢复 | 已实现首版；未保存文本以 500ms 延迟写入/恢复，并保存光标行列；会话 v3 保存每篇文稿缩进与每种语法的默认缩进；滚动位置、实时光标移动及其他格式选项尚未持久化 |
+| 最近文稿/会话 | GPUI 配置目录 JSON；File > Open Recent 菜单动态列出最近文稿，按窗口恢复 | 已实现首版；未保存文本以 500ms 延迟写入/恢复，并保存光标行列；会话 v4 保存每篇文稿缩进、每种语法默认缩进和窗口状态栏显示设置；滚动位置、实时光标移动及其他格式选项尚未持久化 |
 | 编辑/查找 | GPUI Kit Editor、Tree-sitter 语言映射、内置 Undo/Redo、文本查找/替换和搜索面板 | 已接入基础能力；替换可按当前命中或全部执行，CotEditor 搜索语义未核对 |
 | File/Edit/Find/Text/View/Window 菜单 | `Menu` + `Action`，先绑定 keymap 再注册菜单 | 已接入可用子集；File > Open Recent 按当前文稿历史动态构建；macOS 应用菜单包含 Services、Hide、Hide Others、Show CotEdit；有查找前/后项、About、Window Minimize/Zoom；View 勾选态跟随活动窗口；Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation，Custom 对话框校验范围；状态随活动文稿更新 |
 | 快捷键 | `secondary-*` 映射 Command/Control；新建文稿 Cmd+N、新窗口 Cmd+Shift+N、新标签 Cmd+T；查找前/后项 Cmd+G / Cmd+Shift+G；重置语法分析 Cmd+R；使用选区查找/替换 Cmd+E / Cmd+Shift+E；标签切换 Cmd+Shift+[ / ] 并保留 Ctrl+Tab | 已配置；菜单中快捷键显示已在 macOS 实机核验，实体键盘操作和 Windows/Linux 映射待验收 |
 | Dirty 状态 | 保存快照与当前文本/格式比较，显示标签/窗口编辑状态 | 已实现；关闭未保存标签或窗口会先确认丢弃 |
-| 状态栏 | 活动文稿、编码、默认/混合行尾和光标位置 | 已实现基本显示；与 CotEditor 的选择器和编码警告入口尚有差异 |
+| 状态栏 | `StatusBar.swift` 与 Window 菜单 | 状态栏统计可配置 | 简化状态栏显示文稿名、编码/行尾及光标行列；View > Show Status Bar 可切换，并按窗口会话恢复 | 上游还可配置行/字符/单词统计、位置显示；缺设置面板及状态栏字段配置 |
 
 ## 决策记录
 

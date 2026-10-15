@@ -90,6 +90,10 @@ fn default_hard_tabs() -> bool {
     true
 }
 
+fn default_show_status_bar() -> bool {
+    true
+}
+
 #[derive(Clone, Copy, Deserialize, Serialize)]
 struct PersistedIndentation {
     #[serde(default = "default_tab_size")]
@@ -136,6 +140,8 @@ struct PersistedWindow {
     active_file: Option<PathBuf>,
     #[serde(default)]
     active_untitled_index: Option<usize>,
+    #[serde(default = "default_show_status_bar")]
+    show_status_bar: bool,
     #[serde(default)]
     drafts: Vec<PersistedDraft>,
 }
@@ -163,7 +169,7 @@ fn load_session(path: Option<&Path>) -> PersistedSession {
     let mut session = path
         .and_then(|path| std::fs::read(path).ok())
         .and_then(|bytes| serde_json::from_slice::<PersistedSession>(&bytes).ok())
-        .filter(|session| matches!(session.version, 1 | 2 | 3))
+        .filter(|session| matches!(session.version, 1 | 2 | 3 | 4))
         .unwrap_or_default();
     if session.windows.is_empty()
         && (!session.open_files.is_empty() || session.active_file.is_some())
@@ -173,10 +179,11 @@ fn load_session(path: Option<&Path>) -> PersistedSession {
             open_files: std::mem::take(&mut session.open_files),
             active_file: session.active_file.take(),
             active_untitled_index: None,
+            show_status_bar: true,
             drafts: Vec::new(),
         });
     }
-    session.version = 3;
+    session.version = 4;
     session
 }
 
@@ -252,6 +259,7 @@ actions!(
         ToggleLineNumbers,
         ToggleInvisibles,
         ToggleSoftWrap,
+        ToggleStatusBar,
         MinimizeWindow,
         ZoomWindow,
         About,
@@ -353,6 +361,7 @@ struct MenuState {
     line_numbers: bool,
     invisibles: bool,
     soft_wrap: bool,
+    show_status_bar: bool,
     tab_size: usize,
     hard_tabs: bool,
     language: String,
@@ -368,6 +377,7 @@ impl Default for MenuState {
             line_numbers: true,
             invisibles: false,
             soft_wrap: true,
+            show_status_bar: true,
             tab_size: 4,
             hard_tabs: true,
             language: "plaintext".to_owned(),
@@ -386,6 +396,7 @@ struct CotEdit {
     session_file: Option<PathBuf>,
     window_session_id: String,
     session_revision: u64,
+    show_status_bar: bool,
     focus_handle: FocusHandle,
     _menu_focus_subscription: Option<Subscription>,
 }
@@ -405,6 +416,7 @@ impl CotEdit {
             session_file,
             window_session_id: saved_window.id.clone(),
             session_revision: 0,
+            show_status_bar: saved_window.show_status_bar,
             focus_handle: cx.focus_handle(),
             _menu_focus_subscription: None,
         };
@@ -475,6 +487,7 @@ impl CotEdit {
                     .filter(|document| document.path.is_none())
                     .count()
             }),
+            show_status_bar: self.show_status_bar,
             drafts: self
                 .documents
                 .iter()
@@ -509,7 +522,7 @@ impl CotEdit {
             }
         }
         recent_files.truncate(10);
-        session.version = 3;
+        session.version = 4;
         session.recent_files = recent_files;
         session.open_files.clear();
         session.active_file = None;
@@ -692,6 +705,7 @@ impl CotEdit {
             line_numbers: document.show_line_numbers,
             invisibles: document.show_whitespaces,
             soft_wrap: document.soft_wrap,
+            show_status_bar: self.show_status_bar,
             tab_size: document.tab_size,
             hard_tabs: document.hard_tabs,
             language: document.language.clone(),
@@ -1159,6 +1173,13 @@ impl CotEdit {
         install_menus(cx, self.menu_state());
     }
 
+    fn toggle_status_bar(&mut self, _: &ToggleStatusBar, _: &mut Window, cx: &mut Context<Self>) {
+        self.show_status_bar = !self.show_status_bar;
+        install_menus(cx, self.menu_state());
+        self.persist_session(cx);
+        cx.notify();
+    }
+
     fn toggle_invisibles(
         &mut self,
         _: &ToggleInvisibles,
@@ -1565,6 +1586,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::toggle_line_numbers))
             .on_action(cx.listener(Self::toggle_invisibles))
             .on_action(cx.listener(Self::toggle_soft_wrap))
+            .on_action(cx.listener(Self::toggle_status_bar))
             .on_action(cx.listener(Self::minimize_window))
             .on_action(cx.listener(Self::zoom_window))
             .on_action(cx.listener(Self::about))
@@ -1591,28 +1613,30 @@ impl Render for CotEdit {
                         .h_full(),
                 ),
             )
-            .child(
-                h_flex()
-                    .flex_none()
-                    .h_7()
-                    .px_3()
-                    .gap_3()
-                    .items_center()
-                    .bg(cx.theme().secondary)
-                    .border_t_1()
-                    .border_color(cx.theme().border)
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(format!("{}{}", title, if dirty { " • Edited" } else { "" }))
-                    .child(div().flex_1())
-                    .child(format!("{encoding} · {line_ending}"))
-                    .child(div().flex_1())
-                    .child(format!(
-                        "Line {}, column {}",
-                        position.line + 1,
-                        position.character + 1
-                    )),
-            )
+            .when(self.show_status_bar, |workspace| {
+                workspace.child(
+                    h_flex()
+                        .flex_none()
+                        .h_7()
+                        .px_3()
+                        .gap_3()
+                        .items_center()
+                        .bg(cx.theme().secondary)
+                        .border_t_1()
+                        .border_color(cx.theme().border)
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(format!("{}{}", title, if dirty { " • Edited" } else { "" }))
+                        .child(div().flex_1())
+                        .child(format!("{encoding} · {line_ending}"))
+                        .child(div().flex_1())
+                        .child(format!(
+                            "Line {}, column {}",
+                            position.line + 1,
+                            position.character + 1
+                        )),
+                )
+            })
     }
 }
 
@@ -1788,6 +1812,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
             ),
             MenuItem::separator(),
             MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
+            MenuItem::action("Show Status Bar", ToggleStatusBar).checked(state.show_status_bar),
             MenuItem::action("Show Invisibles", ToggleInvisibles).checked(state.invisibles),
             MenuItem::action("Wrap Lines", ToggleSoftWrap).checked(state.soft_wrap),
         ]),

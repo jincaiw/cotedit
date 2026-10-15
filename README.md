@@ -1,6 +1,6 @@
 # CotEdit
 
-CotEdit 是一个使用 Rust、GPUI 和 GPUI Kit 构建的跨平台文本编辑器，目标是按 CotEditor 上游源码、菜单 storyboard、默认设置和帮助逐项实现可移植功能，并记录 macOS、Windows、Linux 的平台差异与验收结果。
+CotEdit 是一个使用 Rust、GPUI 和 GPUI Kit 构建的跨平台文本编辑器，当前功能对照基线为 CotEditor `main` 分支提交 [`0288c37`](https://github.com/coteditor/CotEditor/commit/0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed)（`7.2.0-alpha`）。逐域对照源码、菜单、默认设置和帮助，并记录 macOS、Windows、Linux 的平台差异与验收状态。
 
 ## 当前状态
 
@@ -28,9 +28,10 @@ GitHub Actions 在 macOS、Windows 和 Linux 原生 runner 上构建 GPUI，并�
 ## CotEditor 对照
 
 - [GPUI 功能对齐矩阵](docs/gpui-parity-matrix.md)：逐域记录实现、缺项与验收状态。
+- [CotEditor 当前上游完整比较清单](docs/upstream-main-parity.md)：按当前 `main` 菜单、快捷键、窗口工作流和设置/集成功能核对差异。
 - [GPUI 迁移计划](docs/gpui-migration-plan.md)：剩余工作与发布门槛。
 - [历史兼容性记录](docs/compatibility.md)：旧版 Electron 对齐工作的参考资料，不代表当前 GPUI 实现。
 - [历史菜单清单](docs/menu-parity.md)：旧版菜单核对资料，GPUI 状态以当前对齐矩阵为准。
 - [Electron 移除记录](docs/electron-removal.md)：本次切换范围与旧版发行信息。
 
-上游对照基线：CotEditor 7.1.2，快照提交 `f90e70a644d968e33d48cc6b8258e72a06957f32`。
+上游对照基线：CotEditor `main` 分支 `7.2.0-alpha`，快照提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`。

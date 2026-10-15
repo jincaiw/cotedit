@@ -2,13 +2,13 @@
 
 ## 目标与边界
 
-以 CotEditor 7.1.2 发布版源码、storyboard、默认设置、帮助文档为功能基线；以 `longbridge/gpui-kit` 的 GPUI Kit 0.7.x 为跨平台桌面 UI 技术栈；参考 `sachithrrra/betternotepad` 的 Rust 应用组织、文稿实体、菜单/Action、GPUI 文本编辑器及会话保存实践。
+以 CotEditor `main` 分支当前源码快照（提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，`7.2.0-alpha`）、菜单 storyboard、默认设置和帮助文档为功能基线；同时保留 CotEditor 7.1.2 稳定版作为发布版参照；以 `longbridge/gpui-kit` 的 GPUI Kit 0.7.x 为跨平台桌面 UI 技术栈。
 
 本仓库现以 `app/` 下 GPUI 应用作为唯一应用实现；Electron/CodeMirror 运行时代码、Node/npm 依赖与旧发布入口已删除，历史对齐记录仅供提取需求。CotEditor 上游源码、storyboard、默认设置和帮助仍是功能基线。逐项移植并进行平台验收的工作继续开放；功能差异与“完全一致”验收条件见矩阵，编译成功不代表界面或行为完全一致。
 
 ## 检查结论
 
-- CotEditor 7.1.2 是 Swift/Cocoa macOS 编辑器，功能入口分布于 `Document Window`、`Settings Window`、Inspector、Script/Mode/Theme/Snippet 管理、菜单 storyboard 和帮助资源。
+- CotEditor 当前 `main` 快照为 `7.2.0-alpha`，提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`；稳定版参照为 7.1.2。当前上游 `main` 提供 Swift/Cocoa 原生文本编辑器、设置、检查器、脚本、语法/主题/片段管理、文件夹查找及原生平台服务。
 - 旧 Electron 1.0.7 的功能与测试记录保留于历史文档和 GitHub Release；Electron/CodeMirror 源码及 npm 发行依赖已从当前分支移除。
 - BetterNotepad 是 macOS Rust/GPUI Kit 应用，提供了可核对的 GPUI 文稿/标签、文件菜单、会话恢复、编辑器、状态栏和主题实例。它不是 CotEditor 的完整功能替代，也未作为跨平台实现的验收依据。
 - GPUI Kit 提供原生 GPUI `Editor` / `Textarea`、Action/key binding、菜单、Root、对话框、主题和窗口能力；逐功能迁移仍需建立文稿模型、编码/行尾、语法配置、设置持久化与平台适配。
@@ -16,7 +16,7 @@
 
 ## 当前审查结果与实施顺序
 
-审查快照：CotEditor 7.1.2 源码提交 `f90e70a`、GPUI Kit 0.7.3、CotEdit 提交 `49ed99267`；GitHub 最新正式发行仍是 Electron `v1.0.7`。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
+审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.2-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
 
 | 阶段 | 目标 | 关键实现范围 | 完成/验收条件 |
 |---|---|---|---|
@@ -49,18 +49,20 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ### P0：基线、功能矩阵与项目骨架
 
-- [x] 确认当前 Electron 应用、CotEditor 7.1.2 源码、GPUI Kit API 和 BetterNotepad 架构。
+- [x] 核实当前 CotEditor `main` (`7.2.0-alpha`) 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`、稳定版 CotEditor 7.1.2、GPUI Kit API 和当前 CotEdit 工作树。
 - [x] Electron/CodeMirror 源码、Node/npm 依赖和旧发行工作流已从当前分支删除；历史对齐文档及 `v1.0.7` 已发布资产保留为迁移证据。
 - [x] GPUI 已是唯一应用入口；三平台原生构建和 `gpui-v*` 分发归档工作流已建立。
-- [x] 按功能域建立 CotEditor 上游与 GPUI Rust 实现状态矩阵；旧 Electron 记录仅为历史参考，见 [`docs/gpui-parity-matrix.md`](gpui-parity-matrix.md)。
+- [x] GPUI 功能矩阵逐域记录实现状态、差异和平台验收，见 [`docs/gpui-parity-matrix.md`](gpui-parity-matrix.md)。
+- [x] 从当前 CotEditor `main` storyboard 提取应用菜单及 File/Edit/Format/View/Text/Find/Window/Script/Help 子菜单层级并逐域登记缺口，见 [`docs/upstream-main-parity.md`](upstream-main-parity.md)。
+- [ ] 逐项核对动态启用条件、状态变化、快捷键注册与键盘焦点；静态 storyboard 不作为运行行为验收。
 
 ### P1：编辑器和文稿核心
 
 - [x] 单窗口多文稿标签、独立窗口、标签/窗口关闭确认首版；会话按窗口保存并恢复已保存文稿。
-- [x] 未保存文本缓冲区按窗口延迟写入和恢复，并保存文稿光标行列；会话 v3 保存文稿缩进和语法模式默认缩进偏好；滚动位置、实时光标移动及其他格式状态持久化仍缺。
+- [x] 未保存文本缓冲区按窗口延迟写入和恢复，并保存文稿光标行列；会话 v4 保存文稿缩进、语法模式默认缩进偏好和每窗口状态栏可见性；滚动位置、实时光标移动及其他格式状态持久化仍缺。
 - [x] 跨平台原子保存和保存前外部修改确认首版。
 - [ ] 三平台窗口运行时验收及检查—提交并发竞态处理。
-- [x] 最近文稿列表与按窗口会话恢复；未保存文本按窗口延迟写入/恢复并记住光标行列；会话 v3 保存文稿缩进和语法模式默认值；滚动位置、实时光标移动和其他格式状态仍缺。
+- [x] 最近文稿列表与按窗口会话恢复；未保存文本按窗口延迟写入/恢复并记住光标行列；会话 v4 保存文稿缩进、语法模式默认值和窗口状态栏可见性；滚动位置、实时光标移动和其他格式状态仍缺。
 - [x] 编码检测/选择、BOM、混合及六类换行符、往返无损保存与不兼容字符告警（首版支持 UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5；自动检测和行差异映射仍需边界验收）。
 - [ ] Undo/Redo、多光标、缩进/注释/行操作、Unicode 转换及命令边界核对。
 - [x] GPUI Kit 文本查找、单处/全部替换与转到行（secondary-L）首版；搜索选项和 CotEditor 命中语义仍待对齐。
@@ -71,7 +73,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ### P2：CotEditor 命令面和工作流
 
-- [ ] 依 CotEditor 7.1.2 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；GPUI 已加入首批可用菜单、活动窗口 View 勾选态、当前编码/默认行尾/语法勾选态、Format > Syntax 选择及 Reset Syntax Analysis（Cmd+R）、查找选区操作（Cmd+E / Cmd+Shift+E）、CotEdit 帮助/问题反馈、About、macOS Services/Hide/Hide Others、动态 File > Open Recent、File > Revert to Saved、窗口缩放/最小化和新建/查找快捷键，完整菜单与其他平台验收仍缺。
+- [ ] 依 CotEditor `main` 当前 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；当前实现子集和未实现项见 [GPUI 对齐矩阵](gpui-parity-matrix.md)，View > Show Status Bar 已接入并按窗口保存，完整菜单与其他平台验收仍缺。
 - [ ] 从上游默认键位表建立统一命令注册表；覆盖 macOS Command、Windows/Linux Control 映射、上下文、冲突检查及用户自定义键位。
 - [ ] 设置窗口各页、设置导入/导出、主题管理、片段、替换定义、工具栏定制、脚本和外部集成。
 - [ ] 文件夹浏览/搜索/预览、拖放规则、远程编辑、打印/导出及恢复管理。
@@ -86,7 +88,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。View > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。View > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮移除记录
 
