@@ -76,6 +76,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 - [ ] 依 CotEditor `main` 当前 storyboard 逐项复刻 File/Edit/Format/View/Text/Find/Window/Help/Script 菜单、动态启用/勾选条件及菜单顺序；当前实现子集和未实现项见 [GPUI 对齐矩阵](gpui-parity-matrix.md)，View > Show Status Bar 已接入并按窗口保存，完整菜单与其他平台验收仍缺。
 - [ ] 从上游默认键位表建立统一命令注册表；覆盖 macOS Command、Windows/Linux Control 映射、上下文、冲突检查及用户自定义键位。
 - [ ] 设置窗口各页、设置导入/导出、主题管理、片段、替换定义、工具栏定制、脚本和外部集成。
+- [x] File > Show in File Manager 对已保存文稿打开平台文件管理器（macOS Finder/Windows Explorer 选择文件，Linux 打开父目录）；无路径文稿时菜单禁用。
 - [ ] 文件夹浏览/搜索/预览、拖放规则、远程编辑、打印/导出及恢复管理。
 
 ### P3：平台适配与质量

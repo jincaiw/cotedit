@@ -3,6 +3,7 @@ mod document;
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
@@ -40,6 +41,33 @@ const OPEN_FILES: PathPromptOptions = PathPromptOptions {
     multiple: true,
     prompt: None,
 };
+
+fn reveal_in_file_manager(path: &Path) -> std::io::Result<()> {
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("open");
+        command.arg("-R").arg(path);
+        command
+    };
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut argument = std::ffi::OsString::from("/select,");
+        argument.push(path.as_os_str());
+        let mut command = Command::new("explorer");
+        command.arg(argument);
+        command
+    };
+
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut command = Command::new("xdg-open");
+        command.arg(path.parent().unwrap_or_else(|| Path::new(".")));
+        command
+    };
+
+    command.spawn().map(|_| ())
+}
 
 fn write_atomically(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     let destination = match std::fs::symlink_metadata(path) {
@@ -245,6 +273,7 @@ actions!(
         Save,
         SaveAs,
         RevertToSaved,
+        RevealDocument,
         CloseTab,
         CloseWindow,
         NextTab,
@@ -369,6 +398,7 @@ struct MenuState {
     line_ending: LineEnding,
     recent_files: Vec<PathBuf>,
     can_revert: bool,
+    can_reveal_document: bool,
 }
 
 impl Default for MenuState {
@@ -385,6 +415,7 @@ impl Default for MenuState {
             line_ending: LineEnding::Lf,
             recent_files: Vec::new(),
             can_revert: false,
+            can_reveal_document: false,
         }
     }
 }
@@ -713,6 +744,7 @@ impl CotEdit {
             line_ending: document.line_ending,
             recent_files: self.recent_files.clone(),
             can_revert: document.path.is_some(),
+            can_reveal_document: document.path.is_some(),
         }
     }
 
@@ -853,6 +885,15 @@ impl CotEdit {
 
     fn report_issue(&mut self, _: &ReportIssue, _: &mut Window, cx: &mut Context<Self>) {
         cx.open_url("https://github.com/jincaiw/cotedit/issues/new");
+    }
+
+    fn reveal_document(&mut self, _: &RevealDocument, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self.documents[self.active].path.clone() else {
+            return;
+        };
+        if let Err(error) = reveal_in_file_manager(&path) {
+            window.push_notification(format!("Could not show the file: {error}"), cx);
+        }
     }
 
     fn open_recent_document(
@@ -1547,6 +1588,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::save))
             .on_action(cx.listener(Self::save_as))
             .on_action(cx.listener(Self::revert_to_saved))
+            .on_action(cx.listener(Self::reveal_document))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
             .on_action(cx.listener(Self::next_tab))
@@ -1716,6 +1758,8 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Save", Save),
             MenuItem::action("Save As…", SaveAs),
             MenuItem::action("Revert to Saved", RevertToSaved).disabled(!state.can_revert),
+            MenuItem::action("Show in File Manager", RevealDocument)
+                .disabled(!state.can_reveal_document),
             MenuItem::separator(),
             MenuItem::action("Close", CloseTab),
         ]),

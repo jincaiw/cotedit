@@ -9,7 +9,7 @@ GPUI 当前实际状态见 [功能对齐矩阵](gpui-parity-matrix.md)。本清�
 | 菜单 | CotEditor 上游 7.2.0-alpha 的主要入口 | GPUI 当前对齐范围与缺口 |
 |---|---|---|
 | CotEditor | About、Donate、Settings (`⌘,`)、Services、Hide/Hide Others/Show All、Quit | About、Services、Hide/Hide Others、Quit；缺 Settings、Donate、Show All |
-| File | New (`⌘N`)、New Window (`⇧⌘N`)、New Tab (`⌘T`)、Open (`⌘O`)、Open Recent/Clear Menu、Close (`⌘W`)、Save (`⌘S`)、Save As (`⇧⌘S`)、Revert to Saved、Show in Finder、Copy File Path、Share、Page Setup、Print | New/Open/Recent/Save/Save As/Revert/Close 已有子集；缺 Clear Recent、Reveal/Copy Path/Share、页面设置和打印；Close/window/document 语义尚需逐项对齐 |
+| File | New (`⌘N`)、New Window (`⇧⌘N`)、New Tab (`⌘T`)、Open (`⌘O`)、Open Recent/Clear Menu、Close (`⌘W`)、Save (`⌘S`)、Save As (`⇧⌘S`)、Revert to Saved、Show in Finder、Copy File Path、Share、Page Setup、Print | New/Open/Recent/Save/Save As/Revert/Close 已有子集；Show in File Manager 已接入（macOS/Windows 选择文件，Linux 打开所在目录）；缺 Clear Recent、Copy File Path、Share、页面设置和打印；Close/window/document 语义尚需逐项对齐 |
 | Edit | Undo/Redo、Cut/Copy/Copy as Rich Text/Paste/Paste Exactly/Delete；Select All/Line/Word/Enclosing Symbols/Column Up/Down/Split Selection by Lines；Complete；Unicode 插入与设备连续互通；Spelling and Grammar；Substitutions；Speech | GPUI Editor 已提供 Undo/Redo/Cut/Copy/Paste/Select All；其余文本选择、列选、多光标、完成、Unicode 输入和设备入口缺失；拼写、替换、语音未移植到 GPUI |
 | Format | Line Endings、Text Encoding、Syntax、Reset Syntax Analysis (`⌥⌘R`)、Font/Show Fonts/Font Type/字号/Antialias/Ligatures、Theme、Tab Width/Custom/Use Spaces、Show Invisibles/Indent Guides/Page Guide、Writing Direction、Wrap Lines、Prevent Editing | 行尾、编码、语法、重置语法、Tab Width、自定义宽度、空格缩进、不可见字符和软换行已有子集；字体、主题、显示引导线、页面参考线、方向、只读状态缺失 |
 | View | Show Tab Bar (`⇧⌘T`)、Hide Toolbar (`⌥⌘T`)、Customize Toolbar、Quick Actions (`⌘K`)、Sidebar（File Browser、Folder Find、Show Sidebar）、Inspector（Document/Outline/Warnings/Show Inspector `⌘I`）、Navigation Bar、Line Numbers、Status Bar、分屏与编辑器焦点、全屏 (`⌃⌘F`) | 标签栏和行号已有；状态栏现可切换并按窗口记忆；缺工具栏定制、Quick Actions、侧栏/文件浏览/文件夹查找、检查器、导航栏、分屏/焦点路由和全屏 |
@@ -38,4 +38,5 @@ GPUI 当前实际状态见 [功能对齐矩阵](gpui-parity-matrix.md)。本清�
 ## 目前可验证的新增对齐
 
 - View > Show Status Bar 随窗口切换，复选状态即时同步，并写入会话；旧版会话缺少该字段时默认为显示。
+- File > Show in File Manager 对已保存文稿调用平台文件管理器：macOS Finder 与 Windows Explorer 选择该文件，Linux 打开其父目录；未保存文稿时菜单禁用。
 - 菜单基线快照：CotEditor `main` `0288c37`。每次更新上游比较时，应重新读取 `Main.storyboard`、快捷键和默认设置，再更新本页和 [功能对齐矩阵](gpui-parity-matrix.md)。
