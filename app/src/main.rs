@@ -70,6 +70,146 @@ fn reveal_in_file_manager(path: &Path) -> std::io::Result<()> {
     command.spawn().map(|_| ())
 }
 
+#[derive(Clone, Copy)]
+enum IndentationConversion {
+    TabsToSpaces,
+    SpacesToTabs,
+}
+
+fn convert_indentation_prefix(
+    indent: &str,
+    tab_size: usize,
+    conversion: IndentationConversion,
+) -> (String, Vec<usize>, Vec<usize>) {
+    let tab_size = tab_size.max(1);
+    let bytes = indent.as_bytes();
+    let mut converted = String::with_capacity(indent.len());
+    let mut left_offsets = vec![0; bytes.len() + 1];
+    let mut right_offsets = vec![0; bytes.len() + 1];
+    let mut input = 0;
+    let mut column = 0;
+    while input < bytes.len() {
+        match conversion {
+            IndentationConversion::TabsToSpaces if bytes[input] == b'\t' => {
+                let spaces = tab_size - column % tab_size;
+                converted.extend(std::iter::repeat(' ').take(spaces));
+                column += spaces;
+                input += 1;
+                left_offsets[input] = converted.len();
+                right_offsets[input] = converted.len();
+            }
+            IndentationConversion::TabsToSpaces => {
+                converted.push(' ');
+                column += 1;
+                input += 1;
+                left_offsets[input] = converted.len();
+                right_offsets[input] = converted.len();
+            }
+            IndentationConversion::SpacesToTabs if bytes[input] == b'\t' => {
+                converted.push('\t');
+                column += tab_size - column % tab_size;
+                input += 1;
+                left_offsets[input] = converted.len();
+                right_offsets[input] = converted.len();
+            }
+            IndentationConversion::SpacesToTabs => {
+                let run_end = bytes[input..]
+                    .iter()
+                    .position(|byte| *byte != b' ')
+                    .map_or(bytes.len(), |run| input + run);
+                while input < run_end {
+                    let until_tab_stop = tab_size - column % tab_size;
+                    let remaining = run_end - input;
+                    if remaining >= until_tab_stop {
+                        converted.push('\t');
+                        for boundary in input + 1..input + until_tab_stop {
+                            left_offsets[boundary] = converted.len() - 1;
+                            right_offsets[boundary] = converted.len();
+                        }
+                        input += until_tab_stop;
+                        column += until_tab_stop;
+                        left_offsets[input] = converted.len();
+                        right_offsets[input] = converted.len();
+                    } else {
+                        converted.push(' ');
+                        input += 1;
+                        column += 1;
+                        left_offsets[input] = converted.len();
+                        right_offsets[input] = converted.len();
+                    }
+                }
+            }
+        }
+    }
+    (converted, left_offsets, right_offsets)
+}
+
+fn convert_indentation(
+    text: &str,
+    selection: std::ops::Range<usize>,
+    tab_size: usize,
+    conversion: IndentationConversion,
+) -> Option<(String, std::ops::Range<usize>)> {
+    let selected_lines = if selection.is_empty() {
+        0..text.len()
+    } else {
+        line_range_for_selection(text, selection.clone())?
+    };
+    let mut converted = String::with_capacity(text.len());
+    let mut selection_offsets = [None, None];
+    let mut input_start = 0;
+    for line in text.split_inclusive('\n') {
+        let contents = line.strip_suffix('\n').unwrap_or(line);
+        let indent_len = contents
+            .bytes()
+            .take_while(|byte| matches!(byte, b' ' | b'\t'))
+            .count();
+        let in_scope = input_start >= selected_lines.start && input_start < selected_lines.end;
+        let output_start = converted.len();
+        let (new_indent, left_offsets, right_offsets) = if in_scope {
+            convert_indentation_prefix(&contents[..indent_len], tab_size, conversion)
+        } else {
+            let offsets: Vec<usize> = (0..=indent_len).collect();
+            (contents[..indent_len].to_owned(), offsets.clone(), offsets)
+        };
+        converted.push_str(&new_indent);
+        converted.push_str(&contents[indent_len..]);
+        converted.push_str(&line[contents.len()..]);
+
+        for (index, offset) in [selection.start, selection.end].into_iter().enumerate() {
+            if selection_offsets[index].is_some() || offset > input_start + contents.len() {
+                continue;
+            }
+            let local = offset.saturating_sub(input_start);
+            let offset_map = if index == 1 && !selection.is_empty() {
+                &right_offsets
+            } else {
+                &left_offsets
+            };
+            let mapped = if local <= indent_len {
+                output_start + offset_map[local]
+            } else {
+                output_start + new_indent.len() + local - indent_len
+            };
+            selection_offsets[index] = Some(mapped);
+        }
+        input_start += line.len();
+    }
+    for (index, offset) in [selection.start, selection.end].into_iter().enumerate() {
+        if selection_offsets[index].is_none() {
+            selection_offsets[index] = Some(if offset == text.len() {
+                converted.len()
+            } else {
+                offset
+            });
+        }
+    }
+    Some((
+        converted,
+        selection_offsets[0].unwrap()..selection_offsets[1].unwrap(),
+    ))
+}
+
 fn line_range_for_selection(
     text: &str,
     selection: std::ops::Range<usize>,
@@ -172,7 +312,45 @@ fn map_offset_after_trim(text: &str, offset: usize) -> usize {
 
 #[cfg(test)]
 mod text_command_tests {
-    use super::{delete_line, duplicate_line, map_offset_after_trim, trim_trailing_whitespace};
+    use super::{
+        IndentationConversion, convert_indentation, delete_line, duplicate_line,
+        map_offset_after_trim, trim_trailing_whitespace,
+    };
+
+    #[test]
+    fn converts_indentation_at_tab_stops_and_maps_selection() {
+        assert_eq!(
+            convert_indentation(
+                "\t  value\n    next",
+                1..3,
+                4,
+                IndentationConversion::TabsToSpaces,
+            ),
+            Some(("      value\n    next".to_owned(), 4..6))
+        );
+        assert_eq!(
+            convert_indentation(
+                "    value\n  next",
+                1..3,
+                4,
+                IndentationConversion::SpacesToTabs,
+            ),
+            Some(("\tvalue\n  next".to_owned(), 0..1))
+        );
+    }
+
+    #[test]
+    fn converts_whole_document_when_there_is_no_selection() {
+        assert_eq!(
+            convert_indentation(
+                "\tfirst\n\tsecond",
+                0..0,
+                4,
+                IndentationConversion::TabsToSpaces,
+            ),
+            Some(("    first\n    second".to_owned(), 0..0))
+        );
+    }
 
     #[test]
     fn duplicates_selected_lines_without_moving_selection() {
@@ -428,6 +606,8 @@ actions!(
         ToggleEditing,
         DuplicateLine,
         DeleteLine,
+        ConvertTabsToSpaces,
+        ConvertSpacesToTabs,
         TrimTrailingWhitespace,
         CloseTab,
         CloseWindow,
@@ -1419,6 +1599,50 @@ impl CotEdit {
         cx.notify();
     }
 
+    fn convert_tabs_to_spaces(
+        &mut self,
+        _: &ConvertTabsToSpaces,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.convert_indentation_command(IndentationConversion::TabsToSpaces, window, cx);
+    }
+
+    fn convert_spaces_to_tabs(
+        &mut self,
+        _: &ConvertSpacesToTabs,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.convert_indentation_command(IndentationConversion::SpacesToTabs, window, cx);
+    }
+
+    fn convert_indentation_command(
+        &mut self,
+        conversion: IndentationConversion,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        let tab_size = self.documents[self.active].tab_size;
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((converted, selection)) =
+                convert_indentation(&original, editor.selected_range(), tab_size, conversion)
+            else {
+                return;
+            };
+            if converted == original.as_ref() {
+                return;
+            }
+            editor.replace_all(converted, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn trim_trailing_whitespace(
         &mut self,
         _: &TrimTrailingWhitespace,
@@ -1845,6 +2069,8 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::toggle_editing))
             .on_action(cx.listener(Self::duplicate_line))
             .on_action(cx.listener(Self::delete_line))
+            .on_action(cx.listener(Self::convert_tabs_to_spaces))
+            .on_action(cx.listener(Self::convert_spaces_to_tabs))
             .on_action(cx.listener(Self::trim_trailing_whitespace))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
@@ -2142,6 +2368,10 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::separator(),
             MenuItem::action("Duplicate Line", DuplicateLine).disabled(state.prevent_editing),
             MenuItem::action("Delete Line", DeleteLine).disabled(state.prevent_editing),
+            MenuItem::action("Convert Tabs to Spaces", ConvertTabsToSpaces)
+                .disabled(state.prevent_editing),
+            MenuItem::action("Convert Spaces to Tabs", ConvertSpacesToTabs)
+                .disabled(state.prevent_editing),
             MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
                 .disabled(state.prevent_editing),
         ]),
