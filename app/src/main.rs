@@ -274,6 +274,7 @@ actions!(
         SaveAs,
         RevertToSaved,
         RevealDocument,
+        CopyFilePath,
         CloseTab,
         CloseWindow,
         NextTab,
@@ -894,6 +895,16 @@ impl CotEdit {
         if let Err(error) = reveal_in_file_manager(&path) {
             window.push_notification(format!("Could not show the file: {error}"), cx);
         }
+    }
+
+    fn copy_file_path(&mut self, _: &CopyFilePath, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self.documents[self.active].path.as_ref() else {
+            return;
+        };
+        cx.write_to_clipboard(ClipboardItem::new_string(
+            path.to_string_lossy().into_owned(),
+        ));
+        window.push_notification("File path copied", cx);
     }
 
     fn open_recent_document(
@@ -1589,6 +1600,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::save_as))
             .on_action(cx.listener(Self::revert_to_saved))
             .on_action(cx.listener(Self::reveal_document))
+            .on_action(cx.listener(Self::copy_file_path))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
             .on_action(cx.listener(Self::next_tab))
@@ -1760,6 +1772,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Revert to Saved", RevertToSaved).disabled(!state.can_revert),
             MenuItem::action("Show in File Manager", RevealDocument)
                 .disabled(!state.can_reveal_document),
+            MenuItem::action("Copy File Path", CopyFilePath).disabled(!state.can_reveal_document),
             MenuItem::separator(),
             MenuItem::action("Close", CloseTab),
         ]),
