@@ -70,6 +70,56 @@ fn reveal_in_file_manager(path: &Path) -> std::io::Result<()> {
     command.spawn().map(|_| ())
 }
 
+fn trim_trailing_whitespace(text: &str) -> String {
+    let mut trimmed = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        let (contents, ending) = line
+            .strip_suffix('\n')
+            .map_or((line, ""), |line| (line, "\n"));
+        trimmed.push_str(contents.trim_end_matches([' ', '\t']));
+        trimmed.push_str(ending);
+    }
+    trimmed
+}
+
+fn map_offset_after_trim(text: &str, offset: usize) -> usize {
+    let offset = offset.min(text.len());
+    let mut input_offset = 0;
+    let mut output_offset = 0;
+    for line in text.split_inclusive('\n') {
+        let (contents, newline) = line.strip_suffix('\n').map_or((line, 0), |line| (line, 1));
+        let trimmed_len = contents.trim_end_matches([' ', '\t']).len();
+        let line_end = input_offset + contents.len();
+        if offset <= line_end {
+            return output_offset + offset.saturating_sub(input_offset).min(trimmed_len);
+        }
+        input_offset += line.len();
+        output_offset += trimmed_len + newline;
+    }
+    output_offset
+}
+
+#[cfg(test)]
+mod text_command_tests {
+    use super::{map_offset_after_trim, trim_trailing_whitespace};
+
+    #[test]
+    fn trims_ascii_spaces_and_tabs_without_changing_newlines() {
+        assert_eq!(
+            trim_trailing_whitespace("alpha  \nbeta\t\n\nγamma  "),
+            "alpha\nbeta\n\nγamma"
+        );
+    }
+
+    #[test]
+    fn maps_selection_offsets_across_removed_suffixes() {
+        let text = "alpha  \nbeta\t\n";
+        assert_eq!(map_offset_after_trim(text, 7), 5);
+        assert_eq!(map_offset_after_trim(text, 8), 6);
+        assert_eq!(map_offset_after_trim(text, text.len()), 11);
+    }
+}
+
 fn write_atomically(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     let destination = match std::fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => path.canonicalize()?,
@@ -280,6 +330,7 @@ actions!(
         CopyFilePath,
         ClearRecentFiles,
         ToggleEditing,
+        TrimTrailingWhitespace,
         CloseTab,
         CloseWindow,
         NextTab,
@@ -1233,6 +1284,30 @@ impl CotEdit {
         });
     }
 
+    fn trim_trailing_whitespace(
+        &mut self,
+        _: &TrimTrailingWhitespace,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let selection = editor.selected_range();
+            let trimmed = trim_trailing_whitespace(&original);
+            if trimmed == original.as_ref() {
+                return;
+            }
+            let selection = map_offset_after_trim(&original, selection.start)
+                ..map_offset_after_trim(&original, selection.end);
+            editor.replace_all(trimmed, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn toggle_editing(&mut self, _: &ToggleEditing, _: &mut Window, cx: &mut Context<Self>) {
         self.documents[self.active].prevent_editing = !self.documents[self.active].prevent_editing;
         install_menus(cx, self.menu_state());
@@ -1633,6 +1708,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::copy_file_path))
             .on_action(cx.listener(Self::clear_recent_files))
             .on_action(cx.listener(Self::toggle_editing))
+            .on_action(cx.listener(Self::trim_trailing_whitespace))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
             .on_action(cx.listener(Self::next_tab))
@@ -1926,6 +2002,9 @@ fn install_menus(cx: &mut App, state: MenuState) {
         Menu::new("Text").items([
             MenuItem::action("Indent", input::Indent),
             MenuItem::action("Outdent", input::Outdent),
+            MenuItem::separator(),
+            MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
+                .disabled(state.prevent_editing),
         ]),
         Menu::new("Find").items([
             MenuItem::action("Find…", Find),
