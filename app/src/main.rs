@@ -1854,8 +1854,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
                 ),
             ),
             MenuItem::action("Reset Syntax Analysis", ResetSyntaxAnalysis),
-        ]),
-        Menu::new("View").items([
+            MenuItem::separator(),
             MenuItem::submenu(
                 Menu::new("Tab Width").items([
                     MenuItem::action("2", SetTabWidth { width: 2 }).checked(state.tab_size == 2),
@@ -1867,11 +1866,12 @@ fn install_menus(cx: &mut App, state: MenuState) {
                         .checked(!state.hard_tabs),
                 ]),
             ),
-            MenuItem::separator(),
-            MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
-            MenuItem::action("Show Status Bar", ToggleStatusBar).checked(state.show_status_bar),
             MenuItem::action("Show Invisibles", ToggleInvisibles).checked(state.invisibles),
             MenuItem::action("Wrap Lines", ToggleSoftWrap).checked(state.soft_wrap),
+        ]),
+        Menu::new("View").items([
+            MenuItem::action("Show Line Numbers", ToggleLineNumbers).checked(state.line_numbers),
+            MenuItem::action("Show Status Bar", ToggleStatusBar).checked(state.show_status_bar),
         ]),
         Menu::new("Text").items([
             MenuItem::action("Indent", input::Indent),
