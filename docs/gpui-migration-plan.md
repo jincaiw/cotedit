@@ -16,7 +16,7 @@
 
 ## 当前审查结果与实施顺序
 
-审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.8-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
+审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.9-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
 
 | 阶段 | 目标 | 关键实现范围 | 完成/验收条件 |
 |---|---|---|---|
@@ -92,7 +92,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换；View 菜单提供行号和状态栏开关，Format 菜单提供不可见空白、软换行和 Tab Width 开关，各项勾选态跟随活动文稿；Format 菜单的编码、默认行尾与语法也标记当前选项、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。Format > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复；File > Open Recent > Clear Menu 清空进程共享列表并立即持久化；Text > Trim Trailing Whitespace 删除每行末尾空格与 Tab、保留换行符，并通过单次 Undo 事务应用，恢复活动选区。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换；View 菜单提供行号和状态栏开关，Format 菜单提供不可见空白、软换行和 Tab Width 开关，各项勾选态跟随活动文稿；Format 菜单的编码、默认行尾与语法也标记当前选项、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。Format > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复；File > Open Recent > Clear Menu 清空进程共享列表并立即持久化；Text > Trim Trailing Whitespace 删除每行末尾空格与 Tab、保留换行符，并通过单次 Undo 事务应用，恢复活动选区；Text > Duplicate Line / Delete Line 对光标行或选中行执行整行操作，并通过单次 Undo 事务应用。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮移除记录
 

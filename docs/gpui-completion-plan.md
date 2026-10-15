@@ -48,13 +48,14 @@ CotEditor 是 macOS 原生应用。“完全一致”不能仅靠同名菜单或
 - [x] **Open Recent > Clear Menu** 已完成：最近文稿列表在同一应用进程的所有窗口间共享；清空后更新全局菜单并立即保存会话。其他窗口激活/写会话不会把旧列表恢复。
 - [x] **Format > Prevent Editing** 已完成首版：GPUI Editor 进入原生只读状态，保留焦点/选择/复制；替换入口禁用；状态按文稿会话保存。
 - [x] **Text > Trim Trailing Whitespace** 已完成首版：逐行删除末尾空格与 Tab，保留换行符；一次 Undo 可还原，执行后恢复当前活动选区。
+- [x] **Text > Duplicate Line / Delete Line** 已完成首版：按光标所在行或选区覆盖行范围操作，支持末尾空行并保留/调整活动选区；每条命令各为单次 Undo 事务。
 - [x] 本轮构建、文档、提交与三平台预览发布完成。
 
 | 领域 | 当前交付 | 剩余主要工作 |
 |---|---|---|
 | File | Open Recent > Clear Menu 已共享并持久化；Show in File Manager 与 Copy File Path 已接入 | Share、打印/页面设置及完整 Close 语义 |
 | Format/View | Tab Width、Show Invisibles、Wrap Lines 和 Prevent Editing 已接入 Format 菜单并同步状态 | 字体/主题/页引导/纵排 |
-| Text/Edit | GPUI 基础编辑、Indent/Outdent、行尾空白清理和原生只读模式可用 | 选择、注释、行命令、Unicode 转换、Undo/Redo 边界及替换语义 |
+| Text/Edit | GPUI 基础编辑、Indent/Outdent、行尾空白清理、行复制/删除和原生只读模式可用 | 注释、其他行命令、Unicode 转换、Undo/Redo 边界及替换语义 |
 | 查找/导航/检查器 | 文本查找/替换和转到行首版 | 正则/整词、多重替换、大纲/导航栏/检查器/分屏 |
 | 设置/自定义 | 缩进默认偏好可持久化 | 设置窗口、主题/字体、Mode、用户快捷键、片段/语法包/脚本 |
 | 文件夹/集成 | 最近文稿和单文稿工作流已接入 | 文件夹文稿与搜索、拖放规则、远程编辑、打印/导出及系统服务 |

@@ -1,6 +1,6 @@
 [package]
 name = "cotedit"
-version = "0.1.8-preview.1"
+version = "0.1.9-preview.1"
 edition = "2024"
 autobins = false
 default-run = "CotEdit"

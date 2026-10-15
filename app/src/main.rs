@@ -70,6 +70,77 @@ fn reveal_in_file_manager(path: &Path) -> std::io::Result<()> {
     command.spawn().map(|_| ())
 }
 
+fn line_range_for_selection(
+    text: &str,
+    selection: std::ops::Range<usize>,
+) -> Option<std::ops::Range<usize>> {
+    if text.is_empty() {
+        return None;
+    }
+    let start = selection.start.min(text.len());
+    let end = selection.end.min(text.len());
+    let first_line = text[..start].rfind('\n').map_or(0, |offset| offset + 1);
+    if start == text.len() && text.ends_with('\n') {
+        return Some(text.len()..text.len());
+    }
+    let last_byte = if end > start { end - 1 } else { start };
+    let last_line_start = text[..last_byte].rfind('\n').map_or(0, |offset| offset + 1);
+    let last_line_end = text[last_byte..]
+        .find('\n')
+        .map_or(text.len(), |offset| last_byte + offset + 1);
+    Some(first_line..last_line_end.max(last_line_start))
+}
+
+fn duplicate_line(
+    text: &str,
+    selection: std::ops::Range<usize>,
+) -> Option<(String, std::ops::Range<usize>)> {
+    let lines = line_range_for_selection(text, selection.clone())?;
+    let selected_lines = &text[lines.clone()];
+    let separator = if selected_lines.is_empty() {
+        "\n"
+    } else if selected_lines.ends_with('\n') {
+        ""
+    } else {
+        "\n"
+    };
+    let mut duplicated = String::with_capacity(text.len() + selected_lines.len() + separator.len());
+    duplicated.push_str(&text[..lines.end]);
+    duplicated.push_str(separator);
+    duplicated.push_str(selected_lines);
+    duplicated.push_str(&text[lines.end..]);
+    Some((duplicated, selection))
+}
+
+fn delete_line(
+    text: &str,
+    selection: std::ops::Range<usize>,
+) -> Option<(String, std::ops::Range<usize>)> {
+    let mut lines = line_range_for_selection(text, selection.clone())?;
+    if lines.is_empty() {
+        if lines.start == 0 {
+            return None;
+        }
+        lines.start -= 1;
+    }
+    let mut deleted = String::with_capacity(text.len() - lines.len());
+    deleted.push_str(&text[..lines.start]);
+    deleted.push_str(&text[lines.end..]);
+    let map_offset = |offset: usize| {
+        if offset <= lines.start {
+            offset
+        } else if offset < lines.end {
+            lines.start
+        } else {
+            offset - lines.len()
+        }
+    };
+    Some((
+        deleted,
+        map_offset(selection.start)..map_offset(selection.end),
+    ))
+}
+
 fn trim_trailing_whitespace(text: &str) -> String {
     let mut trimmed = String::with_capacity(text.len());
     for line in text.split_inclusive('\n') {
@@ -101,7 +172,32 @@ fn map_offset_after_trim(text: &str, offset: usize) -> usize {
 
 #[cfg(test)]
 mod text_command_tests {
-    use super::{map_offset_after_trim, trim_trailing_whitespace};
+    use super::{delete_line, duplicate_line, map_offset_after_trim, trim_trailing_whitespace};
+
+    #[test]
+    fn duplicates_selected_lines_without_moving_selection() {
+        assert_eq!(
+            duplicate_line("one\ntwo", 0..3),
+            Some(("one\none\ntwo".to_owned(), 0..3))
+        );
+        assert_eq!(
+            duplicate_line("one\ntwo\n", 4..4),
+            Some(("one\ntwo\ntwo\n".to_owned(), 4..4))
+        );
+        assert_eq!(
+            duplicate_line("one\n", 4..4),
+            Some(("one\n\n".to_owned(), 4..4))
+        );
+    }
+
+    #[test]
+    fn deletes_selected_lines_and_clamps_selection() {
+        assert_eq!(
+            delete_line("one\ntwo\nthree", 4..7),
+            Some(("one\nthree".to_owned(), 4..4))
+        );
+        assert_eq!(delete_line("only", 0..0), Some((String::new(), 0..0)));
+    }
 
     #[test]
     fn trims_ascii_spaces_and_tabs_without_changing_newlines() {
@@ -330,6 +426,8 @@ actions!(
         CopyFilePath,
         ClearRecentFiles,
         ToggleEditing,
+        DuplicateLine,
+        DeleteLine,
         TrimTrailingWhitespace,
         CloseTab,
         CloseWindow,
@@ -1284,6 +1382,43 @@ impl CotEdit {
         });
     }
 
+    fn duplicate_line(&mut self, _: &DuplicateLine, window: &mut Window, cx: &mut Context<Self>) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((duplicated, selection)) = duplicate_line(&original, editor.selected_range())
+            else {
+                return;
+            };
+            if duplicated == original.as_ref() {
+                return;
+            }
+            editor.replace_all(duplicated, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
+    fn delete_line(&mut self, _: &DeleteLine, window: &mut Window, cx: &mut Context<Self>) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((deleted, selection)) = delete_line(&original, editor.selected_range()) else {
+                return;
+            };
+            if deleted == original.as_ref() {
+                return;
+            }
+            editor.replace_all(deleted, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn trim_trailing_whitespace(
         &mut self,
         _: &TrimTrailingWhitespace,
@@ -1708,6 +1843,8 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::copy_file_path))
             .on_action(cx.listener(Self::clear_recent_files))
             .on_action(cx.listener(Self::toggle_editing))
+            .on_action(cx.listener(Self::duplicate_line))
+            .on_action(cx.listener(Self::delete_line))
             .on_action(cx.listener(Self::trim_trailing_whitespace))
             .on_action(cx.listener(Self::close_tab))
             .on_action(cx.listener(Self::close_window))
@@ -2003,6 +2140,8 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Indent", input::Indent),
             MenuItem::action("Outdent", input::Outdent),
             MenuItem::separator(),
+            MenuItem::action("Duplicate Line", DuplicateLine).disabled(state.prevent_editing),
+            MenuItem::action("Delete Line", DeleteLine).disabled(state.prevent_editing),
             MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
                 .disabled(state.prevent_editing),
         ]),
