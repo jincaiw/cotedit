@@ -1,5 +1,6 @@
 mod document;
 
+use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -89,6 +90,32 @@ fn default_hard_tabs() -> bool {
     true
 }
 
+#[derive(Clone, Copy, Deserialize, Serialize)]
+struct PersistedIndentation {
+    #[serde(default = "default_tab_size")]
+    tab_size: usize,
+    #[serde(default = "default_hard_tabs")]
+    hard_tabs: bool,
+}
+
+impl Default for PersistedIndentation {
+    fn default() -> Self {
+        Self {
+            tab_size: default_tab_size(),
+            hard_tabs: default_hard_tabs(),
+        }
+    }
+}
+
+impl PersistedIndentation {
+    fn editor_tab_size(self) -> TabSize {
+        TabSize {
+            tab_size: self.tab_size.clamp(1, 99),
+            hard_tabs: self.hard_tabs,
+        }
+    }
+}
+
 #[derive(Clone, Default, Deserialize, Serialize)]
 struct PersistedDraft {
     path: Option<PathBuf>,
@@ -118,7 +145,10 @@ struct PersistedSession {
     version: u32,
     #[serde(default)]
     windows: Vec<PersistedWindow>,
+    #[serde(default)]
     recent_files: Vec<PathBuf>,
+    #[serde(default)]
+    syntax_indentation: BTreeMap<String, PersistedIndentation>,
     #[serde(default, skip_serializing)]
     open_files: Vec<PathBuf>,
     #[serde(default, skip_serializing)]
@@ -133,7 +163,7 @@ fn load_session(path: Option<&Path>) -> PersistedSession {
     let mut session = path
         .and_then(|path| std::fs::read(path).ok())
         .and_then(|bytes| serde_json::from_slice::<PersistedSession>(&bytes).ok())
-        .filter(|session| matches!(session.version, 1 | 2))
+        .filter(|session| matches!(session.version, 1 | 2 | 3))
         .unwrap_or_default();
     if session.windows.is_empty()
         && (!session.open_files.is_empty() || session.active_file.is_some())
@@ -146,8 +176,16 @@ fn load_session(path: Option<&Path>) -> PersistedSession {
             drafts: Vec::new(),
         });
     }
-    session.version = 2;
+    session.version = 3;
     session
+}
+
+fn load_syntax_indentation(path: Option<&Path>, language: &str) -> PersistedIndentation {
+    load_session(path)
+        .syntax_indentation
+        .get(language)
+        .copied()
+        .unwrap_or_default()
 }
 
 fn save_session(path: Option<&Path>, session: &PersistedSession) -> std::io::Result<()> {
@@ -471,12 +509,29 @@ impl CotEdit {
             }
         }
         recent_files.truncate(10);
-        session.version = 2;
+        session.version = 3;
         session.recent_files = recent_files;
         session.open_files.clear();
         session.active_file = None;
         if let Err(error) = save_session(Some(session_path), &session) {
             eprintln!("Couldn’t save CotEdit session: {error}");
+        }
+    }
+
+    fn remember_syntax_indentation(&self, language: &str, tab_size: usize, hard_tabs: bool) {
+        let Some(path) = self.session_file.as_deref() else {
+            return;
+        };
+        let mut session = load_session(Some(path));
+        session.syntax_indentation.insert(
+            language.to_owned(),
+            PersistedIndentation {
+                tab_size: tab_size.clamp(1, 99),
+                hard_tabs,
+            },
+        );
+        if let Err(error) = save_session(Some(path), &session) {
+            eprintln!("Couldn’t save CotEdit indentation defaults: {error}");
         }
     }
 
@@ -582,13 +637,12 @@ impl CotEdit {
         cx: &mut Context<Self>,
     ) {
         let language = language_for_path(path.as_deref());
+        let indentation = load_syntax_indentation(self.session_file.as_deref(), language);
+        let tab_size = indentation.editor_tab_size();
         let text = decoded.text;
         let editor = cx.new(|cx| {
             EditorState::new(window, cx)
-                .tab_size(TabSize {
-                    tab_size: 4,
-                    hard_tabs: true,
-                })
+                .tab_size(tab_size)
                 .language(language)
                 .line_number(true)
                 .indent_guides(true)
@@ -617,8 +671,8 @@ impl CotEdit {
             show_line_numbers: true,
             show_whitespaces: false,
             soft_wrap: true,
-            tab_size: 4,
-            hard_tabs: true,
+            tab_size: tab_size.tab_size,
+            hard_tabs: tab_size.hard_tabs,
             _subscription: subscription,
         });
         self.active = self.documents.len() - 1;
@@ -680,6 +734,7 @@ impl CotEdit {
     fn set_tab_width(&mut self, action: &SetTabWidth, _: &mut Window, cx: &mut Context<Self>) {
         let document = &mut self.documents[self.active];
         document.tab_size = action.width.clamp(1, 99);
+        let language = document.language.clone();
         let tab_size = document.tab_size;
         let hard_tabs = document.hard_tabs;
         self.editor().update(cx, |editor, cx| {
@@ -691,6 +746,7 @@ impl CotEdit {
                 cx,
             );
         });
+        self.remember_syntax_indentation(&language, tab_size, hard_tabs);
         install_menus(cx, self.menu_state());
         self.persist_session(cx);
         cx.notify();
@@ -742,6 +798,7 @@ impl CotEdit {
     ) {
         let document = &mut self.documents[self.active];
         document.hard_tabs = !document.hard_tabs;
+        let language = document.language.clone();
         let tab_size = document.tab_size;
         let hard_tabs = document.hard_tabs;
         self.editor().update(cx, |editor, cx| {
@@ -753,18 +810,26 @@ impl CotEdit {
                 cx,
             );
         });
+        self.remember_syntax_indentation(&language, tab_size, hard_tabs);
         install_menus(cx, self.menu_state());
         self.persist_session(cx);
         cx.notify();
     }
 
     fn set_syntax(&mut self, action: &SetSyntax, _: &mut Window, cx: &mut Context<Self>) {
-        self.documents[self.active].language = action.language.clone();
         let language = action.language.clone();
+        let indentation = load_syntax_indentation(self.session_file.as_deref(), &language);
+        let tab_size = indentation.editor_tab_size();
+        let document = &mut self.documents[self.active];
+        document.language = language.clone();
+        document.tab_size = tab_size.tab_size;
+        document.hard_tabs = tab_size.hard_tabs;
         self.editor().update(cx, |editor, cx| {
             editor.set_highlighter(language, cx);
+            editor.set_tab_size(tab_size, cx);
         });
         install_menus(cx, self.menu_state());
+        self.persist_session(cx);
         cx.notify();
     }
 

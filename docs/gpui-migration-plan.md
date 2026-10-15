@@ -57,16 +57,16 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 ### P1：编辑器和文稿核心
 
 - [x] 单窗口多文稿标签、独立窗口、标签/窗口关闭确认首版；会话按窗口保存并恢复已保存文稿。
-- [x] 未保存文本缓冲区按窗口延迟写入和恢复，并保存文稿光标行列；Tab Width 与空格缩进按文稿会话保存；滚动位置、实时光标移动及其他格式状态持久化仍缺。
+- [x] 未保存文本缓冲区按窗口延迟写入和恢复，并保存文稿光标行列；会话 v3 保存文稿缩进和语法模式默认缩进偏好；滚动位置、实时光标移动及其他格式状态持久化仍缺。
 - [x] 跨平台原子保存和保存前外部修改确认首版。
 - [ ] 三平台窗口运行时验收及检查—提交并发竞态处理。
-- [x] 最近文稿列表与按窗口会话恢复；未保存文本按窗口延迟写入/恢复并记住光标行列；Tab Width 与空格缩进选项已持久化，滚动位置、实时光标移动和其他格式状态仍缺。
+- [x] 最近文稿列表与按窗口会话恢复；未保存文本按窗口延迟写入/恢复并记住光标行列；会话 v3 保存文稿缩进和语法模式默认值；滚动位置、实时光标移动和其他格式状态仍缺。
 - [x] 编码检测/选择、BOM、混合及六类换行符、往返无损保存与不兼容字符告警（首版支持 UTF-8/UTF-16LE/BE、Windows-1252、Shift_JIS、GBK、Big5；自动检测和行差异映射仍需边界验收）。
 - [ ] Undo/Redo、多光标、缩进/注释/行操作、Unicode 转换及命令边界核对。
 - [x] GPUI Kit 文本查找、单处/全部替换与转到行（secondary-L）首版；搜索选项和 CotEditor 命中语义仍待对齐。
 - [ ] 折叠、大纲、补全、Mode 设置、`.cotsyntax` 兼容读取；明确 Tree-sitter/自定义语法与 CotEditor 解析器的差异。
 - [x] 行号、不可见空白字符和软换行可在 View 菜单切换；Tab Width 支持 2/4/8 列、自定义 1–99 列及 Use Spaces for Indentation，按文稿会话持久化。
-- [ ] 按语法模式保存缩进偏好和三平台实体键盘验收。
+- [x] Tab Width 自定义宽度、按语法模式保存缩进偏好；三平台实体键盘验收仍待完成。
 - [ ] 纵排、分屏、导航栏、文稿/字符/警告 Inspector。
 
 ### P2：CotEditor 命令面和工作流
@@ -86,7 +86,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。未保存文本以 500ms 延迟保存；Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换、行号/不可见空白/软换行开关及活动窗口 View 菜单勾选态、Format 编码、默认行尾与语法勾选态、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。View > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮移除记录
 
