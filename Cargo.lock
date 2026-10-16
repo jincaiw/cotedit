@@ -1120,7 +1120,7 @@ dependencies = [
 
 [[package]]
 name = "cotedit"
-version = "0.1.10-preview.1"
+version = "0.1.11-preview.1"
 dependencies = [
  "anyhow",
  "atomic-write-file",

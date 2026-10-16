@@ -281,6 +281,88 @@ fn delete_line(
     ))
 }
 
+fn collapse_line_breaks(text: &str) -> String {
+    let mut collapsed = String::with_capacity(text.len());
+    let mut cursor = 0;
+    while let Some(relative_newline) = text[cursor..].find('\n') {
+        let newline = cursor + relative_newline;
+        let mut start = newline;
+        while start > cursor {
+            let (previous, character) = text[..start].char_indices().next_back().unwrap();
+            if !character.is_whitespace() {
+                break;
+            }
+            start = previous;
+        }
+        collapsed.push_str(&text[cursor..start]);
+        collapsed.push(' ');
+        let mut end = newline + 1;
+        while end < text.len() {
+            let character = text[end..].chars().next().unwrap();
+            if !character.is_whitespace() {
+                break;
+            }
+            end += character.len_utf8();
+        }
+        cursor = end;
+    }
+    collapsed.push_str(&text[cursor..]);
+    collapsed
+}
+
+fn join_lines(
+    text: &str,
+    selection: std::ops::Range<usize>,
+) -> Option<(String, std::ops::Range<usize>)> {
+    if !selection.is_empty() {
+        let source = &text[selection.clone()];
+        let replacement = collapse_line_breaks(source);
+        if replacement == source {
+            return None;
+        }
+        let mut joined = String::with_capacity(text.len() - selection.len() + replacement.len());
+        joined.push_str(&text[..selection.start]);
+        joined.push_str(&replacement);
+        joined.push_str(&text[selection.end..]);
+        let selected = selection.start..selection.start + replacement.len();
+        return Some((joined, selected));
+    }
+
+    let line_start = text[..selection.start]
+        .rfind('\n')
+        .map_or(0, |index| index + 1);
+    let relative_newline = text[line_start..].find('\n')?;
+    let newline = line_start + relative_newline;
+    let mut start = newline;
+    while start > line_start {
+        let (previous, character) = text[..start].char_indices().next_back().unwrap();
+        if !character.is_whitespace() {
+            break;
+        }
+        start = previous;
+    }
+    let mut end = newline + 1;
+    while end < text.len() {
+        let character = text[end..].chars().next().unwrap();
+        if !character.is_whitespace() {
+            break;
+        }
+        end += character.len_utf8();
+    }
+    let mut joined = String::with_capacity(text.len() - (end - start) + 1);
+    joined.push_str(&text[..start]);
+    joined.push(' ');
+    joined.push_str(&text[end..]);
+    let cursor = if selection.start <= start {
+        selection.start
+    } else if selection.start < end {
+        start + 1
+    } else {
+        selection.start - (end - start) + 1
+    };
+    Some((joined, cursor..cursor))
+}
+
 fn trim_trailing_whitespace(text: &str) -> String {
     let mut trimmed = String::with_capacity(text.len());
     for line in text.split_inclusive('\n') {
@@ -313,9 +395,23 @@ fn map_offset_after_trim(text: &str, offset: usize) -> usize {
 #[cfg(test)]
 mod text_command_tests {
     use super::{
-        IndentationConversion, convert_indentation, delete_line, duplicate_line,
+        IndentationConversion, convert_indentation, delete_line, duplicate_line, join_lines,
         map_offset_after_trim, trim_trailing_whitespace,
     };
+
+    #[test]
+    fn joins_selected_lines_by_collapsing_surrounding_whitespace() {
+        assert_eq!(
+            join_lines("alpha  \n  beta\ngamma", 0..14),
+            Some(("alpha beta\ngamma".to_owned(), 0..10))
+        );
+        assert_eq!(
+            join_lines("alpha\n  beta", 0..0),
+            Some(("alpha beta".to_owned(), 0..0))
+        );
+        assert_eq!(join_lines("a\n  \nb", 0..6), Some(("a b".to_owned(), 0..3)));
+        assert_eq!(join_lines("last line", 0..0), None);
+    }
 
     #[test]
     fn converts_indentation_at_tab_stops_and_maps_selection() {
@@ -606,6 +702,7 @@ actions!(
         ToggleEditing,
         DuplicateLine,
         DeleteLine,
+        JoinLines,
         ConvertTabsToSpaces,
         ConvertSpacesToTabs,
         TrimTrailingWhitespace,
@@ -1599,6 +1696,21 @@ impl CotEdit {
         cx.notify();
     }
 
+    fn join_lines(&mut self, _: &JoinLines, window: &mut Window, cx: &mut Context<Self>) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((joined, selection)) = join_lines(&original, editor.selected_range()) else {
+                return;
+            };
+            editor.replace_all(joined, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn convert_tabs_to_spaces(
         &mut self,
         _: &ConvertTabsToSpaces,
@@ -2069,6 +2181,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::toggle_editing))
             .on_action(cx.listener(Self::duplicate_line))
             .on_action(cx.listener(Self::delete_line))
+            .on_action(cx.listener(Self::join_lines))
             .on_action(cx.listener(Self::convert_tabs_to_spaces))
             .on_action(cx.listener(Self::convert_spaces_to_tabs))
             .on_action(cx.listener(Self::trim_trailing_whitespace))
@@ -2187,6 +2300,7 @@ fn install_commands(cx: &mut App) {
         KeyBinding::new("secondary-f", Find, Some("Editor")),
         KeyBinding::new("secondary-e", UseSelectionForFind, Some("Editor")),
         KeyBinding::new("secondary-shift-e", UseSelectionForReplace, Some("Editor")),
+        KeyBinding::new("secondary-j", JoinLines, Some("Editor")),
         KeyBinding::new("secondary-g", FindNext, Some("Editor")),
         KeyBinding::new("secondary-shift-g", FindPrevious, Some("Editor")),
         KeyBinding::new("secondary-l", GoToLine, Some("Editor")),
@@ -2372,6 +2486,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
                 .disabled(state.prevent_editing),
             MenuItem::action("Convert Spaces to Tabs", ConvertSpacesToTabs)
                 .disabled(state.prevent_editing),
+            MenuItem::action("Join Lines", JoinLines).disabled(state.prevent_editing),
             MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
                 .disabled(state.prevent_editing),
         ]),
