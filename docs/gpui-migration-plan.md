@@ -16,12 +16,12 @@
 
 ## 当前审查结果与实施顺序
 
-审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.12-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
+审查快照：CotEditor `main` / `7.2.0-alpha` 提交 `0288c37ece7cc37c6f4c8d5ad4b4f5b6d9e320ed`，GPUI Kit 0.7.3；稳定发布参照 CotEditor 7.1.2。GitHub CotEdit 最新 GPUI prerelease 为 `gpui-v0.1.13-preview.1`；Electron 正式版 `v1.0.7` 仅是历史发布。当前工作树保留 `.agents/`、`.claude/`、`.tmp/` 与 `skills-lock.json` 未跟踪内容。
 
 | 阶段 | 目标 | 关键实现范围 | 完成/验收条件 |
 |---|---|---|---|
 | A. 桌面壳层与命令 | 优先让窗口、菜单和键盘行为形成一致工作流 | macOS 应用菜单与 Services；File > Open Recent；File/Edit/Format/View/Text/Find/Window/Help 菜单；活动窗口勾选/禁用状态；可复用命令层；标签、状态栏、查找焦点与常用键位 | 逐项对应 storyboard 静态菜单及 `lib/shortcuts.json` 的跨平台映射；macOS/Windows/Linux 菜单和物理键盘记录分别验收 |
-| B. 文本编辑核心 | 补齐 CotEditor 高频文本命令 | 查找选项与命中导航、选择行/词、多光标、缩进配置、注释/行操作、Unicode 转换、剪贴板、撤销边界 | 每个命令明确选区、无选区、Undo 和菜单可用状态；没有对应 GPUI 能力时补 command handler。缩进转换、尾随空白清理、行复制/删除/移动/合并已接入，其他行处理仍待完成 |
+| B. 文本编辑核心 | 补齐 CotEditor 高频文本命令 | 查找选项与命中导航、选择行/词、多光标、缩进配置、注释/行操作、Unicode 转换、剪贴板、撤销边界 | 每个命令明确选区、无选区、Undo 和菜单可用状态；没有对应 GPUI 能力时补 command handler。缩进转换、尾随空白清理、行复制/删除/移动/反转/合并已接入，其他行处理仍待完成 |
 | C. 文稿与偏好 | 对齐文件生命周期和可配置行为 | 格式状态恢复、滚动/光标状态、自动保存恢复、Mode/缩进、编码与换行边界、字体/主题/设置页 | 持久化兼容、损坏文件恢复、大文稿性能与覆盖保护检查 |
 | D. CotEditor 专属能力 | 逐域迁移编辑器之外的工作流 | 大纲/折叠/补全、Inspector、文件夹浏览、片段/替换/语法包、打印/导出、辅助功能 | 每域有明确平台替代方案或被矩阵记录为未支持；检查文件系统边界和权限 |
 | E. 三平台交付 | 让 GPUI 成为可下载、可安装、可更新的独立发行物 | macOS/Windows/Linux 构建矩阵、依赖安装、应用图标/文件关联、版本号、签名/公证和 GitHub Release | 原生 runner 构建及独立 GPUI 分发归档工作流已配置；仍缺完整安装器、文件关联、签名/公证、自动更新和运行验收；旧 Electron `v1.0.7` 资产保留在既有 GitHub Release |
@@ -92,7 +92,7 @@ GPUI Kit 负责通用控件、编辑行为、菜单/焦点/对话框和主题系
 
 ## 第一阶段实施内容
 
-应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换；View 菜单提供行号和状态栏开关，Format 菜单提供不可见空白、软换行和 Tab Width 开关，各项勾选态跟随活动文稿；Format 菜单的编码、默认行尾与语法也标记当前选项、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。Format > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复；File > Open Recent > Clear Menu 清空进程共享列表并立即持久化；Text > Trim Trailing Whitespace 删除每行末尾空格与 Tab、保留换行符，并通过单次 Undo 事务应用，恢复活动选区；Text > Duplicate Line 与 Delete Line 对光标行/选中行执行整行操作，并通过单次 Undo 事务应用；Text > Move Up / Move Down（macOS `⌃⌘↑/↓`、Windows/Linux `Ctrl+Alt+↑/↓`）交换光标行或选区覆盖行与相邻行，支持末尾空行并保留活动选区；Text > Join Lines（`⌘J`）有选区时折叠选区内换行和相邻空白，无选区时合并光标行与后续行；单次 Undo 可还原。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
+应用以 `CotEdit` 标识启动；首批 Rust 增量建立了可独立启动的 GPUI 工作区，提供多窗口、多标签、可横向滚动的标签栏与单标签关闭、Window > Close Window 脏文稿确认、File > Open Recent 动态菜单、File > Revert to Saved 磁盘重载及未保存确认、按窗口保存和恢复已保存文稿及未保存文本缓冲区和光标行列、语法高亮编辑器、Format > Syntax 手动选择 Tree-sitter 语言和 Reset Syntax Analysis（Cmd+R）、原生文件选择、编码/BOM 与逐行换行符读写、原子保存和外部文件修改提示、Find/Replace/Go to Line/Find Next/Previous、将选区用于查找/替换；View 菜单提供行号和状态栏开关，Format 菜单提供不可见空白、软换行和 Tab Width 开关，各项勾选态跟随活动文稿；Format 菜单的编码、默认行尾与语法也标记当前选项、About、Help/Report Issue 链接、macOS Services/Hide/Hide Others、Window Minimize/Zoom、基础 File/Edit/Format/View/Text/Find/Window 菜单。新建文稿/窗口/标签键位已按 CotEditor storyboard 调整。Format > Tab Width 提供 2/4/8 列、自定义 1–99 列和 Use Spaces for Indentation；宽度和缩进方式按文稿会话保存，并在调整时更新当前语法模式默认值；新建文稿和切换语法时应用该模式默认值。View > Show Status Bar 可按窗口切换，状态随会话 v4 恢复；File > Open Recent > Clear Menu 清空进程共享列表并立即持久化；Text > Trim Trailing Whitespace 删除每行末尾空格与 Tab、保留换行符，并通过单次 Undo 事务应用，恢复活动选区；Text > Duplicate Line 与 Delete Line 对光标行/选中行执行整行操作，并通过单次 Undo 事务应用；Text > Move Up / Move Down（macOS `⌃⌘↑/↓`、Windows/Linux `Ctrl+Alt+↑/↓`）交换光标行或选区覆盖行与相邻行，支持末尾空行并保留活动选区；Text > Reverse Lines 无选区时反转全文、有选区时反转覆盖的整行，保留末尾换行并选中反转后的行内容；Text > Join Lines（`⌘J`）有选区时折叠选区内换行和相邻空白，无选区时合并光标行与后续行；单次 Undo 可还原。滚动位置、实时光标移动持久化、跨平台窗口运行时验收、完整 Script/Settings 菜单、搜索选项和设置页仍待实施。保存前检查无法消除检查与提交之间的并发修改竞态。
 
 ## 本轮移除记录
 

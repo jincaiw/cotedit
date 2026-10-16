@@ -210,6 +210,42 @@ fn convert_indentation(
     ))
 }
 
+fn reverse_lines(
+    text: &str,
+    selection: std::ops::Range<usize>,
+) -> Option<(String, std::ops::Range<usize>)> {
+    if text.is_empty() {
+        return None;
+    }
+    let lines = if selection.is_empty() {
+        0..text.len()
+    } else {
+        line_range_for_selection(text, selection)?
+    };
+    let original = &text[lines.clone()];
+    let trailing_newline = original.ends_with('\n');
+    let mut contents = original.split('\n').collect::<Vec<_>>();
+    if trailing_newline {
+        contents.pop();
+    }
+    if contents.len() < 2 {
+        return None;
+    }
+    let mut reversed = String::with_capacity(original.len());
+    for (index, content) in contents.iter().rev().enumerate() {
+        reversed.push_str(content);
+        if index + 1 < contents.len() || trailing_newline {
+            reversed.push('\n');
+        }
+    }
+    let selected_end = lines.start + reversed.len() - if trailing_newline { 1 } else { 0 };
+    let mut result = String::with_capacity(text.len());
+    result.push_str(&text[..lines.start]);
+    result.push_str(&reversed);
+    result.push_str(&text[lines.end..]);
+    Some((result, lines.start..selected_end))
+}
+
 #[derive(Clone, Copy)]
 enum LineMoveDirection {
     Up,
@@ -462,7 +498,7 @@ fn map_offset_after_trim(text: &str, offset: usize) -> usize {
 mod text_command_tests {
     use super::{
         IndentationConversion, LineMoveDirection, convert_indentation, delete_line, duplicate_line,
-        join_lines, map_offset_after_trim, move_line, trim_trailing_whitespace,
+        join_lines, map_offset_after_trim, move_line, reverse_lines, trim_trailing_whitespace,
     };
 
     #[test]
@@ -490,6 +526,20 @@ mod text_command_tests {
             Some(("aa\n\nbb".to_owned(), 3..3))
         );
         assert_eq!(move_line("aa\nbb\n", 6..6, LineMoveDirection::Down), None);
+    }
+
+    #[test]
+    fn reverses_selected_lines_and_preserves_trailing_newline() {
+        assert_eq!(
+            reverse_lines("first\nsecond\nthird", 7..14),
+            Some(("first\nthird\nsecond".to_owned(), 6..18))
+        );
+        assert_eq!(
+            reverse_lines("first\nsecond\n", 0..0),
+            Some(("second\nfirst\n".to_owned(), 0..12))
+        );
+        assert_eq!(reverse_lines("only one line", 0..0), None);
+        assert_eq!(reverse_lines("", 0..0), None);
     }
 
     #[test]
@@ -797,6 +847,7 @@ actions!(
         DeleteLine,
         MoveLineUp,
         MoveLineDown,
+        ReverseLines,
         JoinLines,
         ConvertTabsToSpaces,
         ConvertSpacesToTabs,
@@ -1820,6 +1871,27 @@ impl CotEdit {
         cx.notify();
     }
 
+    fn reverse_lines_command(
+        &mut self,
+        _: &ReverseLines,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((reversed, selection)) = reverse_lines(&original, editor.selected_range())
+            else {
+                return;
+            };
+            editor.replace_all(reversed, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn join_lines(&mut self, _: &JoinLines, window: &mut Window, cx: &mut Context<Self>) {
         if self.documents[self.active].prevent_editing {
             return;
@@ -2307,6 +2379,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::delete_line))
             .on_action(cx.listener(Self::move_line_up))
             .on_action(cx.listener(Self::move_line_down))
+            .on_action(cx.listener(Self::reverse_lines_command))
             .on_action(cx.listener(Self::join_lines))
             .on_action(cx.listener(Self::convert_tabs_to_spaces))
             .on_action(cx.listener(Self::convert_spaces_to_tabs))
@@ -2621,6 +2694,7 @@ fn install_menus(cx: &mut App, state: MenuState) {
                 .disabled(state.prevent_editing),
             MenuItem::action("Move Up", MoveLineUp).disabled(state.prevent_editing),
             MenuItem::action("Move Down", MoveLineDown).disabled(state.prevent_editing),
+            MenuItem::action("Reverse Lines", ReverseLines).disabled(state.prevent_editing),
             MenuItem::action("Join Lines", JoinLines).disabled(state.prevent_editing),
             MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
                 .disabled(state.prevent_editing),
