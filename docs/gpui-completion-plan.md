@@ -52,6 +52,7 @@ CotEditor 是 macOS 原生应用。“完全一致”不能仅靠同名菜单或
 - [x] **Text > Convert Tabs to Spaces / Convert Spaces to Tabs** 已完成首版：仅转换缩进前缀，按文稿 Tab Width 计算制表位；选区限定所含行，无选区时处理全文。
 - [x] **Text > Move Up / Move Down** 已完成首版：依 CotEditor 上游处理选中行与相邻行交换，支持文稿末尾空行，保留活动选区；macOS 使用 `⌃⌘↑/↓`，Windows/Linux 使用 `Ctrl+Alt+↑/↓`，菜单和键盘进入同一命令处理器，每次操作作为单次 Undo 事务。
 - [x] **Text > Reverse Lines** 已完成首版：无选区反转全文，有选区反转所覆盖整行；保留末尾换行并选中反转后的行内容，单行和空文稿不处理。
+- [x] **Text > Delete Duplicates** 已完成首版：无选区处理全文，有选区只处理所覆盖整行；按行内容精确去重并保留首次出现，映射活动选区。
 - [x] **Text > Join Lines** 已完成首版：有选区时折叠选区内换行及周围空白；无选区时连接光标行与后续行；菜单和 `⌘J` 使用同一 Undo 事务处理。
 - [x] 本轮构建、文档、提交与三平台预览发布完成。
 
@@ -59,7 +60,7 @@ CotEditor 是 macOS 原生应用。“完全一致”不能仅靠同名菜单或
 |---|---|---|
 | File | Open Recent > Clear Menu 已共享并持久化；Show in File Manager 与 Copy File Path 已接入 | Share、打印/页面设置及完整 Close 语义 |
 | Format/View | Tab Width、Show Invisibles、Wrap Lines 和 Prevent Editing 已接入 Format 菜单并同步状态 | 字体/主题/页引导/纵排 |
-| Text/Edit | GPUI 基础编辑、Indent/Outdent、空白清理、缩进转换、行复制/删除/移动/反转/合并和原生只读模式可用 | 注释、排序/随机/去重、Unicode 转换、Undo/Redo 边界及替换语义 |
+| Text/Edit | GPUI 基础编辑、Indent/Outdent、空白清理、缩进转换、行复制/删除/移动/反转/去重/合并和原生只读模式可用 | 注释、排序/随机、Unicode 转换、Undo/Redo 边界及替换语义 |
 | 查找/导航/检查器 | 文本查找/替换和转到行首版 | 正则/整词、多重替换、大纲/导航栏/检查器/分屏 |
 | 设置/自定义 | 缩进默认偏好可持久化 | 设置窗口、主题/字体、Mode、用户快捷键、片段/语法包/脚本 |
 | 文件夹/集成 | 最近文稿和单文稿工作流已接入 | 文件夹文稿与搜索、拖放规则、远程编辑、打印/导出及系统服务 |

@@ -1,6 +1,6 @@
 mod document;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -207,6 +207,68 @@ fn convert_indentation(
     Some((
         converted,
         selection_offsets[0].unwrap()..selection_offsets[1].unwrap(),
+    ))
+}
+
+fn delete_duplicate_lines(
+    text: &str,
+    selection: std::ops::Range<usize>,
+) -> Option<(String, std::ops::Range<usize>)> {
+    let lines = if selection.is_empty() {
+        if text.is_empty() {
+            return None;
+        }
+        0..text.len()
+    } else {
+        line_range_for_selection(text, selection.clone())?
+    };
+    let mut unique = HashSet::new();
+    let mut duplicates = Vec::new();
+    let mut line_start = lines.start;
+    while line_start < lines.end {
+        let relative_end = text[line_start..lines.end]
+            .find('\n')
+            .map_or(lines.end - line_start, |offset| offset);
+        let content_end = line_start + relative_end;
+        let line_end = if content_end < lines.end {
+            content_end + 1
+        } else {
+            content_end
+        };
+        if !unique.insert(&text[line_start..content_end]) {
+            duplicates.push(line_start..line_end);
+        }
+        line_start = line_end;
+    }
+    if duplicates.is_empty() {
+        return None;
+    }
+
+    let mut result = String::with_capacity(text.len());
+    let mut cursor = 0;
+    for duplicate in &duplicates {
+        result.push_str(&text[cursor..duplicate.start]);
+        cursor = duplicate.end;
+    }
+    result.push_str(&text[cursor..]);
+    let map_offset = |offset: usize| {
+        let removed = duplicates
+            .iter()
+            .map(|range| {
+                if offset >= range.end {
+                    range.len()
+                } else if offset > range.start {
+                    offset - range.start
+                } else {
+                    0
+                }
+            })
+            .sum::<usize>();
+        offset - removed
+    };
+    Some((
+        result,
+        map_offset(selection.start)..map_offset(selection.end),
     ))
 }
 
@@ -497,8 +559,9 @@ fn map_offset_after_trim(text: &str, offset: usize) -> usize {
 #[cfg(test)]
 mod text_command_tests {
     use super::{
-        IndentationConversion, LineMoveDirection, convert_indentation, delete_line, duplicate_line,
-        join_lines, map_offset_after_trim, move_line, reverse_lines, trim_trailing_whitespace,
+        IndentationConversion, LineMoveDirection, convert_indentation, delete_duplicate_lines,
+        delete_line, duplicate_line, join_lines, map_offset_after_trim, move_line, reverse_lines,
+        trim_trailing_whitespace,
     };
 
     #[test]
@@ -540,6 +603,23 @@ mod text_command_tests {
         );
         assert_eq!(reverse_lines("only one line", 0..0), None);
         assert_eq!(reverse_lines("", 0..0), None);
+    }
+
+    #[test]
+    fn deletes_duplicate_lines_in_scope_and_maps_selection() {
+        assert_eq!(
+            delete_duplicate_lines("a\nb\na\nb", 7..7),
+            Some(("a\nb\n".to_owned(), 4..4))
+        );
+        assert_eq!(
+            delete_duplicate_lines("a\nb\na\n", 0..0),
+            Some(("a\nb\n".to_owned(), 0..0))
+        );
+        assert_eq!(
+            delete_duplicate_lines("z\na\nb\na\nb\nz", 2..8),
+            Some(("z\na\nb\nb\nz".to_owned(), 2..6))
+        );
+        assert_eq!(delete_duplicate_lines("a\nb", 0..0), None);
     }
 
     #[test]
@@ -848,6 +928,7 @@ actions!(
         MoveLineUp,
         MoveLineDown,
         ReverseLines,
+        DeleteDuplicateLines,
         JoinLines,
         ConvertTabsToSpaces,
         ConvertSpacesToTabs,
@@ -1892,6 +1973,28 @@ impl CotEdit {
         cx.notify();
     }
 
+    fn delete_duplicate_lines_command(
+        &mut self,
+        _: &DeleteDuplicateLines,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((deduplicated, selection)) =
+                delete_duplicate_lines(&original, editor.selected_range())
+            else {
+                return;
+            };
+            editor.replace_all(deduplicated, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn join_lines(&mut self, _: &JoinLines, window: &mut Window, cx: &mut Context<Self>) {
         if self.documents[self.active].prevent_editing {
             return;
@@ -2380,6 +2483,7 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::move_line_up))
             .on_action(cx.listener(Self::move_line_down))
             .on_action(cx.listener(Self::reverse_lines_command))
+            .on_action(cx.listener(Self::delete_duplicate_lines_command))
             .on_action(cx.listener(Self::join_lines))
             .on_action(cx.listener(Self::convert_tabs_to_spaces))
             .on_action(cx.listener(Self::convert_spaces_to_tabs))
@@ -2695,6 +2799,8 @@ fn install_menus(cx: &mut App, state: MenuState) {
             MenuItem::action("Move Up", MoveLineUp).disabled(state.prevent_editing),
             MenuItem::action("Move Down", MoveLineDown).disabled(state.prevent_editing),
             MenuItem::action("Reverse Lines", ReverseLines).disabled(state.prevent_editing),
+            MenuItem::action("Delete Duplicates", DeleteDuplicateLines)
+                .disabled(state.prevent_editing),
             MenuItem::action("Join Lines", JoinLines).disabled(state.prevent_editing),
             MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
                 .disabled(state.prevent_editing),
