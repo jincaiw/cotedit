@@ -210,6 +210,72 @@ fn convert_indentation(
     ))
 }
 
+#[derive(Clone, Copy)]
+enum LineMoveDirection {
+    Up,
+    Down,
+}
+
+fn move_line(
+    text: &str,
+    selection: std::ops::Range<usize>,
+    direction: LineMoveDirection,
+) -> Option<(String, std::ops::Range<usize>)> {
+    let lines = line_range_for_selection(text, selection.clone())?;
+    let selected = &text[lines.clone()];
+    match direction {
+        LineMoveDirection::Up => {
+            if lines.start == 0 {
+                return None;
+            }
+            let previous_start = text[..lines.start - 1]
+                .rfind('\n')
+                .map_or(0, |offset| offset + 1);
+            let previous = &text[previous_start..lines.start];
+            let (moved, previous) = if !selected.ends_with('\n') && previous.ends_with('\n') {
+                (
+                    format!("{selected}\n"),
+                    previous.strip_suffix('\n').unwrap_or(previous),
+                )
+            } else {
+                (selected.to_owned(), previous)
+            };
+            let mut result = String::with_capacity(text.len());
+            result.push_str(&text[..previous_start]);
+            result.push_str(&moved);
+            result.push_str(previous);
+            result.push_str(&text[lines.end..]);
+            let map = |offset: usize| previous_start + offset.saturating_sub(lines.start);
+            Some((result, map(selection.start)..map(selection.end)))
+        }
+        LineMoveDirection::Down => {
+            if lines.start == text.len() || (lines.end == text.len() && !text.ends_with('\n')) {
+                return None;
+            }
+            let next_end = text[lines.end..]
+                .find('\n')
+                .map_or(text.len(), |offset| lines.end + offset + 1);
+            let next = &text[lines.end..next_end];
+            let (next, moved) = if !next.ends_with('\n') && selected.ends_with('\n') {
+                (
+                    format!("{next}\n"),
+                    selected.strip_suffix('\n').unwrap_or(selected),
+                )
+            } else {
+                (next.to_owned(), selected)
+            };
+            let mut result = String::with_capacity(text.len());
+            result.push_str(&text[..lines.start]);
+            result.push_str(&next);
+            result.push_str(moved);
+            result.push_str(&text[next_end..]);
+            let moved_start = lines.start + next.len();
+            let map = |offset: usize| moved_start + offset.saturating_sub(lines.start);
+            Some((result, map(selection.start)..map(selection.end)))
+        }
+    }
+}
+
 fn line_range_for_selection(
     text: &str,
     selection: std::ops::Range<usize>,
@@ -395,9 +461,36 @@ fn map_offset_after_trim(text: &str, offset: usize) -> usize {
 #[cfg(test)]
 mod text_command_tests {
     use super::{
-        IndentationConversion, convert_indentation, delete_line, duplicate_line, join_lines,
-        map_offset_after_trim, trim_trailing_whitespace,
+        IndentationConversion, LineMoveDirection, convert_indentation, delete_line, duplicate_line,
+        join_lines, map_offset_after_trim, move_line, trim_trailing_whitespace,
     };
+
+    #[test]
+    fn moves_lines_up_and_down_with_selection() {
+        assert_eq!(
+            move_line("aa\nbb\ncc", 3..5, LineMoveDirection::Up),
+            Some(("bb\naa\ncc".to_owned(), 0..2))
+        );
+        assert_eq!(
+            move_line("aa\nbb\ncc", 3..5, LineMoveDirection::Down),
+            Some(("aa\ncc\nbb".to_owned(), 6..8))
+        );
+        assert_eq!(move_line("aa\nbb", 0..1, LineMoveDirection::Up), None);
+        assert_eq!(move_line("aa\nbb", 3..5, LineMoveDirection::Down), None);
+    }
+
+    #[test]
+    fn moves_last_lines_and_handles_trailing_empty_line() {
+        assert_eq!(
+            move_line("aa\nbb\n", 3..3, LineMoveDirection::Down),
+            Some(("aa\n\nbb".to_owned(), 4..4))
+        );
+        assert_eq!(
+            move_line("aa\nbb\n", 6..6, LineMoveDirection::Up),
+            Some(("aa\n\nbb".to_owned(), 3..3))
+        );
+        assert_eq!(move_line("aa\nbb\n", 6..6, LineMoveDirection::Down), None);
+    }
 
     #[test]
     fn joins_selected_lines_by_collapsing_surrounding_whitespace() {
@@ -702,6 +795,8 @@ actions!(
         ToggleEditing,
         DuplicateLine,
         DeleteLine,
+        MoveLineUp,
+        MoveLineDown,
         JoinLines,
         ConvertTabsToSpaces,
         ConvertSpacesToTabs,
@@ -1696,6 +1791,35 @@ impl CotEdit {
         cx.notify();
     }
 
+    fn move_line_up(&mut self, _: &MoveLineUp, window: &mut Window, cx: &mut Context<Self>) {
+        self.move_line_command(LineMoveDirection::Up, window, cx);
+    }
+
+    fn move_line_down(&mut self, _: &MoveLineDown, window: &mut Window, cx: &mut Context<Self>) {
+        self.move_line_command(LineMoveDirection::Down, window, cx);
+    }
+
+    fn move_line_command(
+        &mut self,
+        direction: LineMoveDirection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.documents[self.active].prevent_editing {
+            return;
+        }
+        self.editor().update(cx, |editor, cx| {
+            let original = editor.value();
+            let Some((moved, selection)) = move_line(&original, editor.selected_range(), direction)
+            else {
+                return;
+            };
+            editor.replace_all(moved, window, cx);
+            editor.set_selected_range(selection, cx);
+        });
+        cx.notify();
+    }
+
     fn join_lines(&mut self, _: &JoinLines, window: &mut Window, cx: &mut Context<Self>) {
         if self.documents[self.active].prevent_editing {
             return;
@@ -2181,6 +2305,8 @@ impl Render for CotEdit {
             .on_action(cx.listener(Self::toggle_editing))
             .on_action(cx.listener(Self::duplicate_line))
             .on_action(cx.listener(Self::delete_line))
+            .on_action(cx.listener(Self::move_line_up))
+            .on_action(cx.listener(Self::move_line_down))
             .on_action(cx.listener(Self::join_lines))
             .on_action(cx.listener(Self::convert_tabs_to_spaces))
             .on_action(cx.listener(Self::convert_spaces_to_tabs))
@@ -2284,6 +2410,11 @@ impl Render for CotEdit {
 }
 
 fn install_commands(cx: &mut App) {
+    let line_move_keys = if cfg!(target_os = "macos") {
+        ("secondary-ctrl-up", "secondary-ctrl-down")
+    } else {
+        ("ctrl-alt-up", "ctrl-alt-down")
+    };
     cx.bind_keys([
         KeyBinding::new("secondary-n", NewDocument, None),
         KeyBinding::new("secondary-shift-n", NewWindow, None),
@@ -2300,6 +2431,8 @@ fn install_commands(cx: &mut App) {
         KeyBinding::new("secondary-f", Find, Some("Editor")),
         KeyBinding::new("secondary-e", UseSelectionForFind, Some("Editor")),
         KeyBinding::new("secondary-shift-e", UseSelectionForReplace, Some("Editor")),
+        KeyBinding::new(line_move_keys.0, MoveLineUp, Some("Editor")),
+        KeyBinding::new(line_move_keys.1, MoveLineDown, Some("Editor")),
         KeyBinding::new("secondary-j", JoinLines, Some("Editor")),
         KeyBinding::new("secondary-g", FindNext, Some("Editor")),
         KeyBinding::new("secondary-shift-g", FindPrevious, Some("Editor")),
@@ -2486,6 +2619,8 @@ fn install_menus(cx: &mut App, state: MenuState) {
                 .disabled(state.prevent_editing),
             MenuItem::action("Convert Spaces to Tabs", ConvertSpacesToTabs)
                 .disabled(state.prevent_editing),
+            MenuItem::action("Move Up", MoveLineUp).disabled(state.prevent_editing),
+            MenuItem::action("Move Down", MoveLineDown).disabled(state.prevent_editing),
             MenuItem::action("Join Lines", JoinLines).disabled(state.prevent_editing),
             MenuItem::action("Trim Trailing Whitespace", TrimTrailingWhitespace)
                 .disabled(state.prevent_editing),
